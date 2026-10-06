@@ -329,9 +329,4 @@ def render_radar_v2(
     payload = json.dumps(_clean(data), ensure_ascii=False, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     doc = _TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
 
-    # Khung chiếm gần hết chiều cao cửa sổ; trang cuộn bên trong, thanh điều hướng cố định ở đáy.
-    st.markdown(
-        '<style>iframe[title="st.iframe"]{height:calc(100vh - 150px) !important;min-height:560px;border-radius:22px;}</style>',
-        unsafe_allow_html=True,
-    )
     embed_html(doc, 900)
