@@ -261,6 +261,27 @@ AGGRID_CSS = {
     ".ag-header-cell": {"padding-left": "14px !important"},
 }
 
+# Khung ngoài của giao diện mới: bỏ thanh Deploy, gom thanh trên thành một hàng, chip trạng thái.
+RADAR_CSS = """
+<style>
+[data-testid="stToolbar"], [data-testid="stDecoration"], #MainMenu, footer {display:none !important;}
+[data-testid="stHeader"] {height:0 !important; min-height:0 !important; background:transparent !important;}
+.block-container {padding-top:.9rem !important; padding-bottom:.4rem !important; max-width:min(99vw,1760px) !important;}
+.nm-brand {display:flex; align-items:center; gap:12px;}
+.nm-brand .nm-logo {width:46px; height:46px;}
+.nm-brand .nm-title {font-size:1.35rem;}
+.nm-chips {display:flex; gap:10px; flex-wrap:wrap; margin:.1rem 0 .55rem;}
+.nm-chip {display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px; background:var(--surface); box-shadow:var(--sh-sm); font-size:.8rem; color:var(--ink2); font-weight:600; max-width:100%;}
+.nm-chip i {width:9px; height:9px; border-radius:50%; flex:none; background:var(--accent); box-shadow:0 0 0 4px rgba(79,70,229,.14);}
+.nm-chip.nm-ok i {background:var(--up); box-shadow:0 0 0 4px rgba(5,150,105,.15);} .nm-chip.nm-bad i {background:var(--down); box-shadow:0 0 0 4px rgba(225,29,72,.14);}
+.nm-chip.nm-wait i {background:var(--wait); box-shadow:0 0 0 4px rgba(217,119,6,.15);}
+.nm-chip b {color:var(--ink);}
+[data-testid="stHorizontalBlock"] [data-baseweb="select"] > div {min-height:44px;}
+[data-testid="stPopover"] button, .stButton button {min-height:44px;}
+iframe[title="st.iframe"] {height:calc(100vh - 150px) !important; min-height:560px; border-radius:22px;}
+</style>
+"""
+
 # Giao diện tối: chỉ ghi đè biến/màu; chèn SAU APP_CSS nên thắng về thứ tự.
 DARK_CSS = """
 <style>
