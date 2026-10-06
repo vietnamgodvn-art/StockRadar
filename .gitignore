@@ -1,0 +1,10 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+_backup_before_*/
+.dashboard.pid
+data/portfolio.csv
+data/runtime_state.pkl
+data/cache_vnstock/
+AGENTS.md

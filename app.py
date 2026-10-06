@@ -25,7 +25,7 @@ from stockdash.storage import load_portfolio
 from stockdash.indicators import add_indicators
 from stockdash.scoring import score_stock
 from stockdash.search_service import load_symbol_catalog, fetch_single_history, fetch_single_timeframe
-from stockdash.ui_common import DARK_CSS, apply_css, icon
+from stockdash.ui_common import DARK_CSS, RADAR_CSS, apply_css, icon
 from stockdash.views.analysis import render_analysis
 from stockdash.views.portfolio import render_portfolio, render_portfolio_manager
 from stockdash.views.radar_v2 import TOP_N as RADAR_TOP_N, render_radar_v2
@@ -39,7 +39,9 @@ DEV_MODE = os.getenv("DASHBOARD_DEV_MODE", "0") == "1"
 VNSTOCK_LOGIN_URL = "https://vnstocks.com/login"
 FULL_HISTORY_FROM = date(2000, 1, 1)
 
-st.set_page_config(page_title=APP_NAME, page_icon=":material/radar:", layout="wide")
+CLASSIC_UI = str(st.query_params.get("ui", "")).lower() == "classic"
+st.set_page_config(page_title=APP_NAME, page_icon=":material/radar:", layout="wide",
+                   initial_sidebar_state="expanded" if CLASSIC_UI else "collapsed")
 apply_css()
 require_password()
 
@@ -726,7 +728,17 @@ top30 = st.session_state["top30"]
 regime = st.session_state["regime"]
 histories = st.session_state["histories"]
 
-header_l, sync_col, full_col = st.columns([6.0, 1.3, 1.9], vertical_alignment="center")
+def _chips_html(rows) -> str:
+    return '<div class="nm-chips">' + "".join(f'<span class="nm-chip nm-{kind}"><i></i><span>{body}</span></span>' for kind, body in rows) + "</div>"
+
+
+if CLASSIC_UI:
+    header_l, sync_col, full_col = st.columns([6.0, 1.3, 1.9], vertical_alignment="center")
+else:
+    # Giao diện mới: MỘT thanh trên duy nhất giống bản mẫu (thương hiệu · tìm mã · Danh mục · tối · ĐỒNG BỘ · CẬP NHẬT).
+    st.markdown(RADAR_CSS, unsafe_allow_html=True)
+    header_l, c_search, c_pf, c_dark, sync_col, full_col = st.columns([2.0, 3.4, 1.35, 1.55, 1.25, 1.9], vertical_alignment="center")
+    status_ph = st.empty()
 mode_text_top = "Chỉnh sửa nhanh" if DEV_MODE else "Sử dụng hằng ngày"
 header_ph = header_l.empty()  # điền sau, khi đã biết các thông báo trạng thái (gộp chung 1 thẻ)
 status_rows: list[tuple[str, str]] = []
@@ -819,18 +831,28 @@ else:
     ))
 
 # Header + mọi thông báo trạng thái gộp trong MỘT thẻ.
-_status_html = "".join(f'<div class="nm-status nm-{kind}">{body}</div>' for kind, body in status_rows)
-header_ph.markdown(
-    f"""<div class="nm-header">
-      <div class="nm-head-top">
-        <div class="nm-logo">{icon("radar", 26)}</div>
-        <div><div class="nm-title">Stock Radar</div>
-        <div class="nm-sub">Bản V{VERSION}</div></div>
-      </div>
-      {_status_html}
-    </div>""",
-    unsafe_allow_html=True,
-)
+if CLASSIC_UI:
+    _status_html = "".join(f'<div class="nm-status nm-{kind}">{body}</div>' for kind, body in status_rows)
+    header_ph.markdown(
+        f"""<div class="nm-header">
+          <div class="nm-head-top">
+            <div class="nm-logo">{icon("radar", 26)}</div>
+            <div><div class="nm-title">Stock Radar</div>
+            <div class="nm-sub">Bản V{VERSION}</div></div>
+          </div>
+          {_status_html}
+        </div>""",
+        unsafe_allow_html=True,
+    )
+else:
+    header_ph.markdown(
+        f"""<div class="nm-brand"><div class="nm-logo">{icon("radar", 24)}</div>
+        <div><div class="nm-title">Stock Radar</div><div class="nm-sub">Bản V{VERSION}</div></div></div>""",
+        unsafe_allow_html=True,
+    )
+    if not has_vnstock_key() and mode == "DỮ LIỆU THẬT - VNSTOCK":
+        status_rows.append(("wait", "<b>Chưa có API key Vnstock</b> (giới hạn 20 request/phút nên tải chậm). Thêm key miễn phí ở thanh bên hoặc mục Secrets <code>VNSTOCK_API_KEY</code>."))
+    status_ph.markdown(_chips_html(status_rows), unsafe_allow_html=True)
 
 # Dựng MỘT bộ dữ liệu hiển thị dùng chung cho tab Thị trường và tab Danh mục.
 # Ở chế độ quote nhanh, mã đã tải lịch sử được giữ đầy đủ chỉ báo thật;
@@ -868,7 +890,7 @@ portfolio_price_live = technical_live or (
 )
 
 hourly = st.session_state.get("hourly_histories", {})
-classic_ui = str(st.query_params.get("ui", "")).lower() == "classic"
+classic_ui = CLASSIC_UI
 
 
 def _render_classic():
@@ -918,12 +940,11 @@ def _render_radar():
         suffix = " · ".join([x for x in [name, exch] if x and x != tk])
         return f"{tk} — {suffix}" if suffix else tk
 
-    c_search, c_pf, c_dark = st.columns([4.2, 1.5, 1.3], vertical_alignment="bottom")
     with c_search:
         rev = int(st.session_state.get("v2_search_rev", 0) or 0)
         searched = st.selectbox(
             "Tìm mã bất kỳ trên HSX / HNX / UPCoM", options, index=None, format_func=_fmt_symbol,
-            placeholder="Gõ mã hoặc tên công ty, ví dụ HPG / Hòa Phát...", key=f"v2_search_{rev}",
+            placeholder="Tìm mã cổ phiếu (VD: HPG, FPT, SSI)…", key=f"v2_search_{rev}", label_visibility="collapsed",
             help="Không giới hạn Top 10. Chọn mã để tải riêng lịch sử và mở biểu đồ.",
         )
     with c_pf:
@@ -948,27 +969,27 @@ def _render_radar():
         st.info("Chưa có dữ liệu thật. Bấm ĐỒNG BỘ để lấy bảng giá; mã được mở sẽ tự tải lịch sử thật theo yêu cầu.")
         return
 
-    # Chế độ đồng bộ nhanh: tải lịch sử cho Top 10 (một lần mỗi phiên) để mở được biểu đồ ngay.
-    if not technical_live and mode == "DỮ LIỆU THẬT - VNSTOCK" and isinstance(view_top, pd.DataFrame) and not view_top.empty:
-        tried = st.session_state.setdefault("v2_tried", set())
-        have = set(st.session_state.get("histories", {}).keys())
-        need = [str(x).upper() for x in view_top["ticker"].head(RADAR_TOP_N) if str(x).upper() not in have and str(x).upper() not in tried]
-        if need:
-            with st.spinner(f"Đang tải lịch sử cho {len(need)} mã nổi bật (lần đầu có thể mất một lúc)..."):
-                for tk in need:
-                    tried.add(tk)
-                    try:
-                        analyze_symbol_and_store(tk, prefer_live_quote=True)
-                    except Exception:
-                        pass
-                _save_runtime_cache()
-            st.rerun()
-
     open_ticker = st.session_state.pop("v2_open", None)
     render_radar_v2(
         view_bundle, view_market, view_top, st.session_state.get("histories", histories), view_regime, True,
         PORTFOLIO_PATH, hourly_histories=hourly, open_ticker=open_ticker, dark=bool(dark),
     )
+
+    # Đã hiển thị xong giao diện → mới tải lịch sử cho Top 10 (một lần mỗi phiên), rồi làm mới.
+    if not technical_live and mode == "DỮ LIỆU THẬT - VNSTOCK" and isinstance(view_top, pd.DataFrame) and not view_top.empty:
+        tried = st.session_state.setdefault("v2_tried", set())
+        have = set(st.session_state.get("histories", {}).keys())
+        need = [str(x).upper() for x in view_top["ticker"].head(RADAR_TOP_N) if str(x).upper() not in have and str(x).upper() not in tried]
+        if need:
+            status_ph.markdown(_chips_html(status_rows + [("wait", f"<b>Đang tải lịch sử cho {len(need)} mã nổi bật…</b> Giao diện vẫn dùng được; sẽ tự làm mới khi xong.")]), unsafe_allow_html=True)
+            for tk in need:
+                tried.add(tk)
+                try:
+                    analyze_symbol_and_store(tk, prefer_live_quote=True)
+                except Exception:
+                    pass
+            _save_runtime_cache()
+            st.rerun()
 
 
 if classic_ui:
