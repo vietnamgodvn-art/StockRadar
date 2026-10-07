@@ -181,6 +181,8 @@ html,body{background:var(--bg)}
 .tr>:nth-child(8){min-width:0}
 .tsp{min-width:0;display:block}.tsp svg.sp{display:block;width:100%;height:28px}
 @media(max-width:760px){.tr,.tr.pf{grid-template-columns:60px 1fr 1fr 84px;gap:8px}.tr>:nth-child(2),.tr>:nth-child(4),.tr>:nth-child(6),.tr>:nth-child(7){display:none}}
+.tbl::after{transition:opacity .2s}.tbl.end::after{opacity:0}
+.tbl{padding-bottom:14px !important}
 </style></head><body><div class="mesh"><i></i><i></i><i></i></div>
 <div class="ticker"><div class="belt" id="belt"></div></div>
 <div class="wrap">
@@ -441,6 +443,13 @@ function bindQA(det,tk){const I=det.info||{},plan=I.portfolio_plan||null,ma=det.
   return {reply,reco,an}}
  const go=()=>{const a=ans($('#qIn').value);$('#qR').textContent=a.reply||'Chưa có trả lời.';$('#qC').textContent=a.reco||'CHỜ THÊM DỮ LIỆU';$('#qC').style.color=recoCls(String(a.reco||''));$('#qA').textContent=a.an||'Chưa có phân tích bổ sung.';$('#qOut').style.display='block'};
  $('#qGo').onclick=go;$('#qIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();go()}})}
+
+function updFade(el){el.classList.toggle('end',el.scrollTop+el.clientHeight>=el.scrollHeight-4)}
+function updAllFades(){document.querySelectorAll('.tbl').forEach(updFade)}
+document.addEventListener('scroll',e=>{if(e.target.classList&&e.target.classList.contains('tbl'))updFade(e.target)},true);
+window.addEventListener('resize',updAllFades);
+(function(){const a=renderTop,b=renderPort,c=setPage;renderTop=function(){a();updAllFades()};renderPort=function(){b();updAllFades()};setPage=function(p){c(p);updAllFades()}})();
+updAllFades();
 if(D.open)openDetail(D.open);
 </script>
 </body></html>
