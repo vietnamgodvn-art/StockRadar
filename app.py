@@ -20,13 +20,13 @@ load_dotenv(BASE_DIR / ".env", override=True)
 from stockdash.auth import require_password
 from stockdash.config import APP_NAME, DEFAULT_UNIVERSE, PORTFOLIO_CSV, RUNTIME_CACHE_PATH
 from stockdash.engine import build_market_tables
-from stockdash.news_service import analyze_ticker, ensure_headlines, estimated_cost_usd, has_ai_key, missing_headlines, model_name
+from stockdash.news_service import analyze_ticker, build_pack, ensure_headlines, estimated_cost_usd, has_ai_key, missing_headlines, model_name, notable_summary
 from stockdash.providers import MarketBundle, SSIProvider, VnstockProvider, register_vnstock_key
 from stockdash.storage import load_portfolio
 from stockdash.indicators import add_indicators
 from stockdash.scoring import score_stock
 from stockdash.search_service import load_symbol_catalog, fetch_single_history, fetch_single_timeframe
-from stockdash.ui_common import DARK_CSS, RADAR_CSS, apply_css, icon
+from stockdash.ui_common import DARK_CSS, RADAR_CSS, apply_css, icon, trend_text
 from stockdash.views.analysis import render_analysis
 from stockdash.views.portfolio import render_portfolio, render_portfolio_manager
 from stockdash.views.radar_v2 import TOP_N as RADAR_TOP_N, render_radar_v2
@@ -932,7 +932,36 @@ def _symbol_options():
 
 def _news_panel(cands: list[str]) -> None:
     """Nút Tin tức AI: bật khóa, chọn mã và chạy đánh giá tin tức (có tốn phí theo lượt gọi)."""
-    st.markdown("**Đánh giá tin tức bằng AI**")
+    # Gói tin các mã đang nắm giữ: bấm sao chép rồi dán vào trang "Quét tin danh mục" của Claude (hoặc vào chat với Claude).
+    _held = held_symbols()
+    if _held:
+        st.markdown("**Gói tin các mã đang giữ**")
+        _hot = notable_summary(_held)
+        st.caption(("Mã có tin đáng chú ý trong 14 ngày: " + ", ".join(f"{t} ({n})" for t, n in _hot)) if _hot else "Chưa thấy tin đáng chú ý (hoặc tin đang được tải).")
+        _mk = globals().get("view_market")
+        _rows = []
+        for _tk in _held:
+            meta = []
+            if isinstance(_mk, pd.DataFrame) and not _mk.empty and "ticker" in _mk.columns:
+                _hit = _mk[_mk["ticker"].astype(str).str.upper() == _tk]
+                if not _hit.empty:
+                    _r = _hit.iloc[0]
+                    if pd.notna(_r.get("close")):
+                        meta.append(f"giá {float(_r['close']):,.0f}")
+                    if pd.notna(_r.get("change_pct")):
+                        meta.append(f"{float(_r['change_pct']):+.2f}%".replace(".", ","))
+                    try:
+                        meta.append("xu hướng " + trend_text(_r))
+                    except Exception:
+                        pass
+                    if pd.notna(_r.get("rsi14")):
+                        meta.append(f"RSI {float(_r['rsi14']):.0f}")
+            _rows.append({"ticker": _tk, "meta": meta})
+        st.code(build_pack(_rows), language=None)
+        st.caption("Bấm biểu tượng sao chép ở góc khối trên, rồi dán vào trang phân tích của Claude (hoặc vào cuộc trò chuyện với Claude).")
+        st.link_button("Mở trang Quét tin danh mục", "https://claude.ai/artifact/WcfWT5boHEXaPrmcbiZWWN", width="stretch")
+        st.divider()
+    st.markdown("**Đánh giá tin tức bằng AI (tuỳ chọn, có phí)**")
     st.caption(
         "AI đọc ~30 tiêu đề tin gần đây của mã (báo chí + công bố thông tin) rồi nhận định tác động tới giá ngắn hạn (1–4 tuần) "
         "và dài hạn (6–12 tháng). Chỉ đọc tiêu đề, không phải nội dung bài; kết quả là tham khảo, không phải lời khuyên đầu tư."

@@ -151,6 +151,48 @@ def keyword_tag(title: str) -> str:
     return "neu"
 
 
+_NOTABLE = ("cổ đông lớn", "người nội bộ", "người có liên quan", "quyết định của", "công văn", "phát hành", "thoái vốn", "mua thêm", "đăng ký mua",
+            "đăng ký bán", "thuế", "thanh tra", "kiểm toán", "lợi nhuận", "kế hoạch", "cổ tức", "mua lại", "hợp đồng", "giảm sàn", "tăng sàn")
+
+
+def is_notable(item: dict) -> bool:
+    """Tin 'đáng đọc' (không phải thủ tục thuần): có nhãn tích cực/tiêu cực hoặc chứa từ khoá quan trọng."""
+    s = str(item.get("title", "")).lower()
+    return item.get("tag") in ("pos", "neg") or any(k in s for k in _NOTABLE)
+
+
+def notable_summary(tickers, days: int = 14) -> list[tuple[str, int]]:
+    """[(mã, số tin đáng chú ý trong `days` ngày)] giảm dần, chỉ mã có ít nhất 1 tin."""
+    cutoff = (datetime.now(VN_TZ).replace(tzinfo=None) - timedelta(days=days)).strftime("%Y-%m-%d")
+    out = []
+    for tk in dict.fromkeys(str(x).upper().strip() for x in tickers):
+        c = cached_headlines(tk)
+        if not c:
+            continue
+        n = sum(1 for it in c["items"] if it.get("date", "") >= cutoff and is_notable(it))
+        if n:
+            out.append((tk, n))
+    return sorted(out, key=lambda x: -x[1])
+
+
+def build_pack(rows: list[dict], days: int = 21, per: int = 12) -> str:
+    """Gói văn bản để dán vào trang 'Quét tin danh mục' (hoặc dán cho Claude): mỗi mã một khối
+    '## MÃ | giá | % | xu hướng' rồi các tiêu đề tin gần đây dạng '- ngày tiêu đề'."""
+    now = datetime.now(VN_TZ).replace(tzinfo=None)
+    cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    lines = [f"STOCK RADAR · GÓI TIN · {now:%d/%m/%Y}"]
+    for r in rows:
+        tk = str(r.get("ticker", "")).upper().strip()
+        if not tk:
+            continue
+        meta = " | ".join(str(x) for x in r.get("meta", []) if x)
+        lines.append(f"## {tk}" + (f" | {meta}" if meta else ""))
+        c = cached_headlines(tk)
+        items = [it for it in (c["items"] if c else []) if it.get("date", "") >= cutoff][:per]
+        lines += [f"- {it['date']} {it['title']}" for it in items]
+    return "\n".join(lines)
+
+
 def _load_hl() -> dict:
     try:
         return json.loads(HEADLINES_CACHE_PATH.read_text(encoding="utf-8"))
