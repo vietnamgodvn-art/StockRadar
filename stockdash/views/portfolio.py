@@ -6,7 +6,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from ..portfolio import aggregate_portfolio
-from ..storage import add_purchase, delete_position, load_portfolio, replace_position, save_portfolio
+from ..storage import add_purchase, delete_position, load_portfolio, replace_position, save_portfolio, load_sales, record_sale
 from ..ui_common import AGGRID_CSS, HELP, THEME, icon, section_title, stock_detail_panel
 
 try:
@@ -580,7 +580,60 @@ def _render_portfolio_backup(portfolio_path: str, lots: pd.DataFrame) -> None:
         st.error(f"Không nhập được file: {e}")
 
 
-def render_portfolio_manager(portfolio_path: str) -> None:
+def _render_partial_sell(portfolio_path: str, portfolio: pd.DataFrame, prices: dict) -> None:
+    """Bán một phần hoặc bán hết (giá vốn bình quân giữ nguyên). Hiện trước số còn lại và lãi/lỗ đã chốt."""
+    from datetime import datetime as _dt
+    st.markdown("**Bán một phần / bán hết**")
+    flash = st.session_state.pop("sell_flash", None)
+    if flash:
+        st.success(flash)
+    held = portfolio["ticker"].astype(str).tolist()
+    tk = st.selectbox("Mã đang giữ", held, key="sell_tk_v19")
+    raw = portfolio.set_index("ticker").loc[tk]
+    have = int(round(float(raw["quantity"])))
+    avg = float(raw["avg_cost"])
+    cur = prices.get(str(tk).upper())
+    c1, c2 = st.columns(2)
+    with c1:
+        qty = st.number_input(f"Số lượng bán (đang có {have:,})", min_value=0, max_value=have, value=0, step=100, key=f"sell_qty_{tk}")
+    with c2:
+        price = st.number_input("Giá bán", min_value=0.0, value=float(cur if cur and cur > 0 else avg), step=100.0, format="%.0f", key=f"sell_px_{tk}")
+    if qty > 0:
+        remain = have - int(qty)
+        pnl = (float(price) - avg) * int(qty)
+        pnl_txt = f":green[+{pnl:,.0f}]" if pnl >= 0 else f":red[{pnl:,.0f}]"
+        lines = [
+            f"- Bán **{int(qty):,}** cổ phiếu {tk} giá **{float(price):,.0f}** → thu về **{float(price) * int(qty):,.0f}**",
+            f"- **Lãi/lỗ đã chốt:** {pnl_txt} ({(float(price) / avg - 1) * 100:+.2f}% so với giá vốn bình quân {avg:,.0f})" if avg > 0 else f"- Thu về {float(price) * int(qty):,.0f}",
+        ]
+        if remain > 0:
+            lines.append(f"- **Còn lại: {remain:,} cổ phiếu** · giá vốn bình quân giữ nguyên **{avg:,.0f}** · vốn còn lại **{remain * avg:,.0f}**")
+            if cur and cur > 0:
+                unreal = (float(cur) - avg) * remain
+                u_txt = f":green[+{unreal:,.0f}]" if unreal >= 0 else f":red[{unreal:,.0f}]"
+                lines.append(f"- Giá trị còn lại theo giá hiện tại {float(cur):,.0f}: **{remain * float(cur):,.0f}** · lãi/lỗ tạm tính {u_txt}")
+        else:
+            lines.append("- **Bán hết:** mã sẽ được xóa khỏi danh mục.")
+        st.markdown("\n".join(lines))
+        if st.button("XÁC NHẬN BÁN", type="primary", width="stretch", key=f"sell_ok_{tk}"):
+            if float(price) <= 0:
+                st.error("Cần nhập giá bán lớn hơn 0.")
+            else:
+                got = record_sale(portfolio_path, tk, int(qty), float(price), avg, _dt.now().strftime("%Y-%m-%d"))
+                if remain > 0:
+                    replace_position(portfolio_path, tk, avg, remain)
+                else:
+                    delete_position(portfolio_path, tk)
+                st.session_state["sell_flash"] = f"Đã bán {int(qty):,} {tk}. Lãi/lỗ đã chốt {got:+,.0f}. " + (f"Còn lại {remain:,} cổ phiếu." if remain > 0 else "Đã bán hết, xóa khỏi danh mục.")
+                st.rerun()
+    sales = load_sales(portfolio_path)
+    if not sales.empty:
+        total = float(pd.to_numeric(sales["pnl"], errors="coerce").fillna(0).sum())
+        st.caption(f"Tổng lãi/lỗ đã chốt: {total:+,.0f} VND ({len(sales)} lần bán). Lịch sử bán mất khi máy chủ web khởi động lại; hãy tải về để giữ.")
+        st.download_button("TẢI LỊCH SỬ BÁN (CSV)", data=sales.to_csv(index=False).encode("utf-8-sig"), file_name="realized_sales.csv", mime="text/csv", width="stretch", key="sales_export_csv")
+
+
+def render_portfolio_manager(portfolio_path: str, prices: dict | None = None) -> None:
     """Thêm lần mua, điều chỉnh/xóa vị thế, sao lưu CSV. Dùng trong expander hoặc popover."""
     lots = load_portfolio(portfolio_path)
     portfolio = aggregate_portfolio(lots, pd.DataFrame())
@@ -621,6 +674,11 @@ def render_portfolio_manager(portfolio_path: str) -> None:
                 delete_position(portfolio_path, edit_ticker)
                 st.rerun()
 
+    if not portfolio.empty:
+        st.divider()
+        _render_partial_sell(portfolio_path, portfolio, prices or {})
+
+    st.divider()
     _render_portfolio_backup(portfolio_path, lots)
 
 

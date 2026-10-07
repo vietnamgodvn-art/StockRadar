@@ -25,7 +25,7 @@ from stockdash.providers import MarketBundle, SSIProvider, VnstockProvider, regi
 from stockdash.storage import load_portfolio
 from stockdash.indicators import add_indicators
 from stockdash.scoring import score_stock
-from stockdash.search_service import load_symbol_catalog, fetch_single_history, fetch_single_timeframe
+from stockdash.search_service import load_symbol_catalog, fetch_single_history, fetch_single_timeframe, fetch_hourly_recent
 from stockdash.ui_common import DARK_CSS, RADAR_CSS, apply_css, icon, trend_text
 from stockdash.views.analysis import render_analysis
 from stockdash.views.portfolio import render_portfolio, render_portfolio_manager
@@ -531,6 +531,20 @@ def load_symbol_on_demand(ticker: str):
     if str(ticker).strip():
         analyze_symbol_and_store(ticker)
         _save_runtime_cache()
+
+
+def load_hourly_recent_on_demand(ticker: str) -> None:
+    """Nến giờ ngắn hạn (45 ngày) cho đường mini; nhớ cả kết quả rỗng trong phiên."""
+    ticker = str(ticker).upper().strip()
+    cache = st.session_state.setdefault("hourly_recent", {})
+    if not ticker or ticker in cache:
+        return
+    mode_now = st.session_state.get("selected_mode", "DỮ LIỆU THẬT - VNSTOCK")
+    try:
+        df = fetch_hourly_recent(mode_now, ticker)
+    except Exception:
+        df = pd.DataFrame()
+    cache[ticker] = df if isinstance(df, pd.DataFrame) else pd.DataFrame()
 
 
 def load_hourly_on_demand(ticker: str):
@@ -1056,7 +1070,11 @@ def _render_radar():
         )
     with c_pf:
         with st.popover("Danh mục", width="stretch", icon=":material/add:", help="Thêm lần mua, điều chỉnh/xóa vị thế, sao lưu CSV"):
-            render_portfolio_manager(PORTFOLIO_PATH)
+            _mkp = globals().get("view_market")
+            _prices = {}
+            if isinstance(_mkp, pd.DataFrame) and not _mkp.empty and {"ticker", "close"} <= set(_mkp.columns):
+                _prices = {str(a).upper(): float(b) for a, b in zip(_mkp["ticker"], _mkp["close"]) if pd.notna(b)}
+            render_portfolio_manager(PORTFOLIO_PATH, prices=_prices)
     with c_news:
         _cands: list[str] = []
         _vt = globals().get("view_top")
@@ -1088,7 +1106,8 @@ def _render_radar():
     open_ticker = st.session_state.pop("v2_open", None)
     render_radar_v2(
         view_bundle, view_market, view_top, st.session_state.get("histories", histories), view_regime, True,
-        PORTFOLIO_PATH, hourly_histories=hourly, open_ticker=open_ticker, dark=bool(dark),
+        PORTFOLIO_PATH, hourly_histories={**st.session_state.get("hourly_recent", {}), **{k: v for k, v in (hourly or {}).items() if isinstance(v, pd.DataFrame) and not v.empty}},
+        open_ticker=open_ticker, dark=bool(dark),
     )
 
     # Tin tức (miễn phí): tải theo từng đợt nhỏ sau khi đã hiển thị, rồi làm mới để hiện tin.
@@ -1097,11 +1116,21 @@ def _render_radar():
     _hl_need = missing_headlines(_hl_tickers)
     _hl_tried = st.session_state.setdefault("hl_tried", set())
     _hl_need = [x for x in _hl_need if x not in _hl_tried]
-    if _hl_need:
-        status_ph.markdown(_chips_html(status_rows + [("wait", f"<b>Đang tải tin tức cho {len(_hl_need)} mã…</b> Giao diện vẫn dùng được; sẽ tự làm mới khi xong.")]), unsafe_allow_html=True)
+    # Dữ liệu giờ cho đường mini (tải theo đợt nhỏ, nhớ trong phiên)
+    _hs = st.session_state.setdefault("hourly_recent", {})
+    _h_tried = st.session_state.setdefault("h_tried", set())
+    _h_need = [x for x in dict.fromkeys(_hl_tickers) if x not in _hs and x not in _h_tried] if mode == "DỮ LIỆU THẬT - VNSTOCK" else []
+    if _hl_need or _h_need:
+        status_ph.markdown(_chips_html(status_rows + [("wait", f"<b>Đang tải tin tức và dữ liệu giờ ({len(_hl_need)} + {len(_h_need)} mã)…</b> Giao diện vẫn dùng được; sẽ tự làm mới khi xong.")]), unsafe_allow_html=True)
         batch = _hl_need[:8]
         _hl_tried.update(batch)
         ensure_headlines(batch, max_new=8)
+        for _tk in _h_need[:6]:
+            _h_tried.add(_tk)
+            try:
+                load_hourly_recent_on_demand(_tk)
+            except Exception:
+                pass
         st.rerun()
 
     # Đã hiển thị xong giao diện → mới tải lịch sử cho Top 10 (một lần mỗi phiên), rồi làm mới.

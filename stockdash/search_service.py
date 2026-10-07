@@ -183,3 +183,13 @@ def fetch_single_timeframe(mode: str, ticker: str, interval: str = "1H") -> pd.D
         return pd.DataFrame()
     p = VnstockProvider(universe=[(ticker, "", "")], extra_symbols=[ticker])
     return p.timeframe_history(ticker, from_date, to_date, interval=interval)
+
+
+def fetch_hourly_recent(mode: str, ticker: str, days: int = 45) -> pd.DataFrame:
+    """Nến giờ NGẮN HẠN (mặc định 45 ngày) cho đường mini trong bảng; nhẹ hơn nhiều so với 370 ngày."""
+    ticker = str(ticker).upper().strip()
+    if not ticker or mode == "DỮ LIỆU THẬT - SSI":
+        return pd.DataFrame()
+    to_date = datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None).date()
+    p = VnstockProvider(universe=[(ticker, "", "")], extra_symbols=[ticker])
+    return p.timeframe_history(ticker, to_date - timedelta(days=days), to_date, interval="1H", cache_tag="_recent")

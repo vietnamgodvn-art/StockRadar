@@ -684,14 +684,14 @@ class VnstockProvider:
         return pd.DataFrame(rows), breadth
 
     # V1619O_TIMEFRAME_HISTORY
-    def timeframe_history(self, symbol: str, start: date, end: date, interval: str = "1H") -> pd.DataFrame:
+    def timeframe_history(self, symbol: str, start: date, end: date, interval: str = "1H", cache_tag: str = "") -> pd.DataFrame:
         """OHLCV theo khung thời gian cho mã đang mở; cache riêng từng interval."""
         symbol = str(symbol).upper().strip()
         interval = str(interval or "1H").upper().strip()
         if interval == "1D":
             return self._stock_history(symbol, start, end)
         safe = interval.lower().replace("/", "_")
-        path = self.cache_dir / f"{symbol}_{safe}.csv"
+        path = self.cache_dir / f"{symbol}_{safe}{cache_tag}.csv"
         try:
             if path.exists():
                 age = datetime.now() - datetime.fromtimestamp(path.stat().st_mtime)

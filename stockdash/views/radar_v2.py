@@ -17,7 +17,7 @@ import streamlit as st
 
 from ..news_service import all_cached, all_headlines, combine, has_ai_key, model_name
 from ..portfolio import aggregate_portfolio
-from ..storage import load_portfolio
+from ..storage import load_portfolio, realized_total
 from ..ui_common import (
     _chart_epoch, _chart_interval_payload, _clean_history, buy_action_now, combined_trend_projection,
     decision_explanation, embed_html, general_recommendation, portfolio_exit_plan, safe_num, short_reason,
@@ -58,6 +58,21 @@ def _spark(hist, n: int = 24) -> list:
         return []
     c = pd.to_numeric(hist["close"], errors="coerce").dropna().tail(n)
     return [round(float(x), 2) for x in c] if len(c) >= 3 else []
+
+
+def _series(df, n: int, hourly: bool = False) -> dict:
+    """Chuỗi giá cho đường mini trong bảng: giá + nhãn thời gian (ngày dd/mm hoặc giờ dd/mm HH:MM)."""
+    empty = {"v": [], "t": []}
+    if not isinstance(df, pd.DataFrame) or df.empty or "close" not in df.columns or "date" not in df.columns:
+        return empty
+    d = df[["date", "close"]].copy()
+    d["date"] = pd.to_datetime(d["date"], errors="coerce")
+    d["close"] = pd.to_numeric(d["close"], errors="coerce")
+    d = d.dropna().sort_values("date").tail(n)
+    if len(d) < 3:
+        return empty
+    f = "%d/%m %H:%M" if hourly else "%d/%m"
+    return {"v": [round(float(x), 2) for x in d["close"]], "t": [ts.strftime(f) for ts in d["date"]]}
 
 
 def _title(text: str) -> str:
@@ -275,7 +290,7 @@ def _detail(ticker: str, market: pd.DataFrame, histories: dict, regime: dict, pr
         "1D": _chart_interval_payload(base, "1D", _OVERLAYS),
         "1W": _chart_interval_payload(hist, "1W", _OVERLAYS),
         "1M": _chart_interval_payload(hist, "1M", _OVERLAYS),
-        "1H": _chart_interval_payload(hourly, "1H", _OVERLAYS) if isinstance(hourly, pd.DataFrame) and not hourly.empty else {"t": []},
+        "1H": _chart_interval_payload(hourly.tail(500), "1H", _OVERLAYS) if isinstance(hourly, pd.DataFrame) and not hourly.empty else {"t": []},
     }
     proj = dict(combined_trend_projection(hist, horizon=30) or {})
     pts = []
@@ -308,6 +323,14 @@ def render_radar_v2(
 
     top_rows = _top_rows(top, regime, histories)
     port = _portfolio_payload(portfolio, histories, is_live)
+    try:
+        if port.get("rows"):
+            port["sum"]["realized"] = realized_total(portfolio_path)
+    except Exception:
+        pass
+
+    for r in top_rows + port.get("rows", []):
+        r["sp"] = {"d": _series(histories.get(r["t"]), 24, False), "h": _series(hourly_histories.get(r["t"]), 40, True)}
 
     wanted: list[str] = [r["t"] for r in top_rows] + [r["t"] for r in port.get("rows", [])]
     if open_ticker:

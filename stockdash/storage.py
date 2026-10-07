@@ -67,3 +67,42 @@ def replace_position(path: str, ticker: str, avg_cost: float, quantity: float) -
     delete_position(path, ticker)
     if float(quantity) > 0:
         add_purchase(path, ticker, avg_cost, quantity)
+
+
+_SALE_COLS = ["date", "ticker", "quantity", "sell_price", "avg_cost", "pnl"]
+
+
+def sales_path(portfolio_path: str) -> Path:
+    return Path(portfolio_path).with_name("realized_sales.csv")
+
+
+def load_sales(portfolio_path: str) -> pd.DataFrame:
+    p = sales_path(portfolio_path)
+    if not p.exists():
+        return pd.DataFrame(columns=_SALE_COLS)
+    try:
+        df = pd.read_csv(p)
+    except Exception:
+        return pd.DataFrame(columns=_SALE_COLS)
+    for c in _SALE_COLS:
+        if c not in df.columns:
+            df[c] = "" if c in {"date", "ticker"} else 0
+    return df[_SALE_COLS]
+
+
+def record_sale(portfolio_path: str, ticker: str, quantity: float, sell_price: float, avg_cost: float, date_text: str) -> float:
+    """Bán một phần/bán hết theo giá vốn bình quân. Ghi lãi/lỗ đã chốt; trả về lãi/lỗ của lần bán này."""
+    q, sp, ac = float(quantity), float(sell_price), float(avg_cost)
+    pnl = (sp - ac) * q
+    df = load_sales(portfolio_path)
+    row = {"date": date_text, "ticker": str(ticker).upper().strip(), "quantity": q, "sell_price": sp, "avg_cost": ac, "pnl": pnl}
+    df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    p = sales_path(portfolio_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(p, index=False)
+    return pnl
+
+
+def realized_total(portfolio_path: str) -> float:
+    df = load_sales(portfolio_path)
+    return float(pd.to_numeric(df["pnl"], errors="coerce").fillna(0).sum()) if not df.empty else 0.0

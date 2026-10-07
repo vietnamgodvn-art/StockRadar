@@ -184,6 +184,19 @@ html,body{background:var(--bg)}
 /*fade-v2*/
 .tbl{padding-bottom:0 !important}
 .tbl::after{margin-top:0 !important;height:76px !important;transition:opacity .2s}
+/*spark-time*/
+.tsp{position:relative}
+.tsm{position:absolute;top:0;height:28px;width:1px;background:var(--ink3);display:none;pointer-events:none}.tsm.on{display:block}
+.tsl{display:flex;justify-content:space-between;margin-top:2px;font-size:9.5px;color:var(--ink3);line-height:1}.tsl i{font-style:normal}
+#stip{position:fixed;display:none;z-index:60;background:#0f172a;color:#fff;padding:3px 8px;border-radius:6px;font-size:11.5px;pointer-events:none;white-space:nowrap}
+.spkseg{margin-left:auto;display:inline-flex;padding:3px;border-radius:10px;background:var(--seg);box-shadow:var(--well);gap:2px}
+.spkseg button{border:0;background:transparent;padding:5px 12px;border-radius:7px;font:600 12px var(--font);color:var(--ink2);cursor:pointer}
+.spkseg button.on{background:var(--c1);color:var(--ac);box-shadow:var(--sm)}.spkseg button:disabled{opacity:.45;cursor:not-allowed}
+/*tsl-val*/
+.tsl{align-items:flex-start;margin-top:3px !important;line-height:1.25 !important}
+.tsl i{display:flex;flex-direction:column;font-style:normal;font-size:10.5px;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums}
+.tsl i:last-child{text-align:right;align-items:flex-end}
+.tsl u{text-decoration:none;font-size:9.5px;font-weight:500;color:var(--ink3)}
 </style></head><body><div class="mesh"><i></i><i></i><i></i></div>
 <div class="ticker"><div class="belt" id="belt"></div></div>
 <div class="wrap">
@@ -202,7 +215,7 @@ html,body{background:var(--bg)}
         </div></div>
     </div>
     <div class="view" id="v1"><div class="heat" id="heat"></div>
-      <div class="sec"><h2>Bảng chi tiết</h2><span class="note">Mã · Sàn · Giá · Tăng/Giảm · KL khớp · Độ rõ · Khuyến nghị</span></div>
+      <div class="sec"><h2>Bảng chi tiết</h2><span class="note">Mã · Sàn · Giá · Tăng/Giảm · KL khớp · Độ rõ · Khuyến nghị</span><div class="spkseg" role="group" aria-label="Khung thời gian của đường mini"><button type="button" data-m="d">Ngày</button><button type="button" data-m="h">Giờ</button></div></div>
       <div class="card tbl" id="tbl1"></div></div>
     <div class="view" id="v2"><div class="lanes" id="lanes"></div></div>
     <div id="mEmpty" class="card" style="display:none"></div>
@@ -220,7 +233,7 @@ html,body{background:var(--bg)}
       <div class="guides" id="guides"></div>
       <div class="view" id="p1"><div class="heat" id="heatp"></div></div>
       <div class="view" id="p2"><div class="lanes" id="lanesp"></div></div>
-      <div class="sec"><h2>Danh mục chi tiết</h2><span class="note">Giá vốn / Hiện tại · % phiên trước · Lãi/Lỗ · Độ rõ tín hiệu · Khuyến nghị</span></div>
+      <div class="sec"><h2>Danh mục chi tiết</h2><span class="note">Giá vốn / Hiện tại · % phiên trước · Lãi/Lỗ · Độ rõ tín hiệu · Khuyến nghị</span><div class="spkseg" role="group" aria-label="Khung thời gian của đường mini"><button type="button" data-m="d">Ngày</button><button type="button" data-m="h">Giờ</button></div></div>
       <div class="card tbl" id="tbl2"></div>
       <div class="sec"><h2>Tỷ trọng danh mục</h2></div>
       <div class="tm">
@@ -277,9 +290,26 @@ $('#belt').innerHTML=(h=>h+h)((D.top||[]).concat((D.port&&D.port.rows)||[]).filt
 /* ---------- Top ---------- */
 const spans=[[4,2],[4,2],[4,2],[3,2],[3,2],[3,2],[3,2],[4,1],[4,1],[4,1]];
 const SORTS={t1:{k:null,d:-1},t2:{k:null,d:-1}},RANK={g:4,y:3,n:2,r:1,s:0},TEXTK=new Set(['t','ex']);
-function trendOf(r){const a=r.spark;return a&&a.length>1&&a[0]?a[a.length-1]/a[0]-1:null}
-function tspark(a){return a&&a.length>1?spark(a,a[a.length-1]>=a[0],28):'<span class="k" style="letter-spacing:0">—</span>'}
-function hdrHTML(id,cls,cols){const S=SORTS[id];return `<div class="tr ${cls} h">`+cols.map(([label,key])=>`<span class="sh${S.k===key?' on':''}" data-s="${key}" data-t="${id}" tabindex="0" role="button" title="Sắp xếp theo ${label}">${label}<i class="sar">${S.k===key?(S.d>0?'▲':'▼'):'↕'}</i></span>`).join('')+'</div>'}
+const SPK={t1:[],t2:[]};let SPKMODE=store.get('sr-spk')||'d';
+function hasHourly(){return [...(D.top||[]),...((D.port&&D.port.rows)||[])].some(r=>r.sp&&r.sp.h&&r.sp.h.v&&r.sp.h.v.length>1)}
+if(SPKMODE==='h'&&!hasHourly())SPKMODE='d';
+function trendOf(r){const s=r.sp&&r.sp[SPKMODE],a=(s&&s.v&&s.v.length>1)?s.v:r.spark;return a&&a.length>1&&a[0]?a[a.length-1]/a[0]-1:null}
+function tspark(r,id){const s=r.sp&&r.sp[SPKMODE];
+ if(!s||!s.v||s.v.length<2)return `<span class="tsp"><span class="k" style="letter-spacing:0" title="${SPKMODE==='h'?'Chưa có dữ liệu giờ (đang tải hoặc nguồn chưa có)':'Chưa có lịch sử'}">—</span></span>`;
+ const i=SPK[id].push(s)-1,v=s.v;
+ return `<span class="tsp" data-spk="${id}:${i}">${spark(v,v[v.length-1]>=v[0],28)}<b class="tsm"></b><span class="tsl"><i><u>${esc(s.t[0])}</u>${fmt(v[0])}</i><i><u>${esc(s.t[s.t.length-1])}</u>${fmt(v[v.length-1])}</i></span></span>`}
+const stip=document.createElement('div');stip.id='stip';document.body.appendChild(stip);
+document.addEventListener('mousemove',e=>{const el=e.target.closest&&e.target.closest('.tsp[data-spk]');
+ if(!el){stip.style.display='none';document.querySelectorAll('.tsm.on').forEach(x=>x.classList.remove('on'));return}
+ const [id,i]=el.dataset.spk.split(':'),s=(SPK[id]||[])[+i];if(!s)return;
+ const r=el.getBoundingClientRect(),n=s.v.length,k=Math.max(0,Math.min(n-1,Math.round((e.clientX-r.left)/r.width*(n-1))));
+ const m=el.querySelector('.tsm');m.classList.add('on');m.style.left=(k/(n-1)*100)+'%';
+ stip.textContent=`${s.t[k]} · ${fmt(s.v[k])}`;stip.style.display='block';stip.style.left=Math.min(innerWidth-170,e.clientX+12)+'px';stip.style.top=Math.max(4,e.clientY-34)+'px'});
+function updSpkSeg(){const hasH=hasHourly();document.querySelectorAll('.spkseg').forEach(g=>g.querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.m===SPKMODE);
+ if(b.dataset.m==='h'){b.disabled=!hasH;b.title=hasH?'Đường mini theo giờ (khoảng 40 nến giờ gần nhất)':'Dữ liệu giờ đang được tải hoặc nguồn chưa có'}}))}
+document.addEventListener('click',e=>{const b=e.target.closest('.spkseg button');if(!b||b.disabled)return;SPKMODE=b.dataset.m;store.set('sr-spk',SPKMODE);
+ renderTop();if(P&&P.rows&&P.rows.length)renderPort();updSpkSeg()});
+function hdrHTML(id,cls,cols){SPK[id].length=0;const S=SORTS[id];return `<div class="tr ${cls} h">`+cols.map(([label,key])=>`<span class="sh${S.k===key?' on':''}" data-s="${key}" data-t="${id}" tabindex="0" role="button" title="Sắp xếp theo ${label}">${label}<i class="sar">${S.k===key?(S.d>0?'▲':'▼'):'↕'}</i></span>`).join('')+'</div>'}
 function sortRows(rows,id){const S=SORTS[id];if(!S.k)return rows;const k=S.k,d=S.d,val=r=>k==='rec'?RANK[r.rec]:(k==='trd'?trendOf(r):r[k]);
  return rows.slice().sort((a,b)=>{const x=val(a),y=val(b),nx=x==null||Number.isNaN(x),ny=y==null||Number.isNaN(y);if(nx&&ny)return 0;if(nx)return 1;if(ny)return -1;return (typeof x==='string'?x.localeCompare(y,'vi'):x-y)*d})}
 function toggleSort(id,key){const S=SORTS[id];if(S.k!==key){S.k=key;S.d=TEXTK.has(key)?1:-1}else if(S.d===(TEXTK.has(key)?1:-1)){S.d=-S.d}else{S.k=null;S.d=-1}
@@ -294,7 +324,7 @@ function renderTop(){const rows=topFiltered();$('#topN').textContent=rows.length
  if(!(D.top&&D.top.length)){$('#mEmpty').innerHTML='Chưa có dữ liệu. Bấm <b>ĐỒNG BỘ</b> để lấy giá thật; dùng <b>CẬP NHẬT TOÀN BỘ</b> khi muốn tính toàn bộ chỉ báo kỹ thuật.';}
  const sorted=rows.slice().sort((a,b)=>(b.conf||0)-(a.conf||0));
  $('#heat').innerHTML=sorted.map((m,i)=>{const [w,h]=spans[i]||[3,1];return `<div class="tile${h>1?'':' c'}" data-tk="${esc(m.t)}" style="grid-column:span ${w};grid-row:span ${h};background:${tone(m.chg)},var(--c1)"><span class="shine"></span><div class="tk">${h>1?'':`<i class="rd" style="background:${REC[m.rec]}"></i>`}${esc(m.t)}</div><div class="px num">${fmt(m.p)}</div><div class="pc num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</div>${h>1?`<div class="rcd">${rcs(m.rec,m.recText)}</div>`:''}${spark(m.spark,(m.chg||0)>=0)}</div>`}).join('');
- $('#tbl1').innerHTML=hdrHTML('t1','',[['Mã','t'],['Sàn','ex'],['Giá','p'],['Tăng/Giảm','chg'],['Xu hướng','trd'],['KL khớp','vol'],['Độ rõ','conf'],['Khuyến nghị','rec']])+sortRows(rows,'t1').map(m=>`<div class="tr" data-tk="${esc(m.t)}"><b>${esc(m.t)}</b><span class="k" style="letter-spacing:0">${esc(m.ex)}</span><b class="num">${fmt(m.p)}</b><b class="num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</b><span class="tsp" title="Giá 24 phiên gần nhất">${tspark(m.spark)}</span><span class="num">${fmt(m.vol)}</span>${ring(m.conf)}${rcs(m.rec,m.recText)}</div>`).join('');
+ $('#tbl1').innerHTML=hdrHTML('t1','',[['Mã','t'],['Sàn','ex'],['Giá','p'],['Tăng/Giảm','chg'],['Xu hướng','trd'],['KL khớp','vol'],['Độ rõ','conf'],['Khuyến nghị','rec']])+sortRows(rows,'t1').map(m=>`<div class="tr" data-tk="${esc(m.t)}"><b>${esc(m.t)}</b><span class="k" style="letter-spacing:0">${esc(m.ex)}</span><b class="num">${fmt(m.p)}</b><b class="num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</b>${tspark(m,'t1')}<span class="num">${fmt(m.vol)}</span>${ring(m.conf)}${rcs(m.rec,m.recText)}</div>`).join('');
  const L=[['Chưa nên mua / Chưa đủ dữ liệu',['r','n'],'#e11d48'],['Chờ xác nhận',['y'],'#f59e0b'],['Có thể mua thăm dò',['g'],'#10b981']];
  $('#lanes').innerHTML=L.map(l=>{const it=rows.filter(m=>l[1].includes(m.rec));return `<div class="lane"><h3><span class="dot" style="background:${l[2]};box-shadow:0 0 0 4px ${l[2]}33;animation:none"></span>${l[0]}<em>${it.length}</em></h3>${it.map(m=>`<div class="sig" data-tk="${esc(m.t)}" style="--c:${REC[m.rec]}"><div><div class="tk">${esc(m.t)}</div><div class="ex">${esc(m.ex)}</div></div><div class="pr"><b class="num">${fmt(m.p)}</b> <b class="num ${dir(m.chg)}" style="font-size:12px">${pc(m.chg)}</b><small class="num">KL ${fmt(m.vol)}</small></div>${spark(m.spark,(m.chg||0)>=0)}${ring(m.conf)}</div>`).join('')||'<div class="k" style="padding:12px 10px">Chưa có mã</div>'}</div>`}).join('')}
 ['fq','fex','fsc','ftr','fvol'].forEach(i=>$('#'+i).addEventListener('input',renderTop));
@@ -309,7 +339,7 @@ function renderPort(){const rows=P.rows||[];
  if(!rows.length){$('#pEmpty').innerHTML='Danh mục đang trống. Dùng nút <b>＋ Danh mục</b> ở thanh trên để thêm vị thế đầu tiên.';return}
  const S=P.sum||{};
  $('#pfsL').innerHTML=`<div class="mv"><span class="k">Tổng giá vốn</span><b class="num">${fmt(S.cost)}</b><small>VND</small></div><div class="mv"><span class="k">Giá trị hiện tại</span><b class="num">${isN(S.value)?fmt(S.value):'—'}</b><small>VND</small></div><div class="mv ${(S.pnl||0)<0?'neg':''}"><span class="k">Lãi/Lỗ tạm tính</span><b class="num ${dir(S.pnl)}">${isN(S.pnl)?((S.pnl>0?'+':'')+fmt(S.pnl)):'—'}</b><small>${isN(S.pnlPct)?`<span class="pill ${S.pnlPct<0?'d':'u'}">${arrow(S.pnlPct)} ${pc(S.pnlPct)}</span>`:'VND'}</small></div><div class="mv"><span class="k">Số mã</span><b class="num">${S.count}</b><small><span class="pill u">▴ ${S.priced}/${S.count} đã có giá</span></small></div>`;
- $('#pfsR').innerHTML=`<div class="k">Tổng quan vị thế danh mục</div><div class="hl" style="color:${P.stateColor}">${esc(P.state)}</div><div class="ds">${P.desc}</div><div class="chips"><span class="chip">Độ rõ TB <b style="color:var(--ink)">${P.avgConf}/100</b></span><span class="chip">Mã đang lãi <b class="u">${P.win}</b></span><span class="chip">Mã đang lỗ <b class="d">${P.loss}</b></span><span class="chip" style="font-weight:500">${esc(P.coverage)} · nội dung tự đổi theo lần Đồng bộ gần nhất</span></div><div class="rule"><b>Nguyên tắc:</b> xử lý mã yếu trước → giữ mã khỏe → chỉ tăng tỷ trọng khi giá và khối lượng cùng xác nhận.</div>`;
+ $('#pfsR').innerHTML=`<div class="k">Tổng quan vị thế danh mục</div><div class="hl" style="color:${P.stateColor}">${esc(P.state)}</div><div class="ds">${P.desc}</div><div class="chips"><span class="chip">Độ rõ TB <b style="color:var(--ink)">${P.avgConf}/100</b></span><span class="chip">Mã đang lãi <b class="u">${P.win}</b></span><span class="chip">Mã đang lỗ <b class="d">${P.loss}</b></span>${isN(S.realized)&&S.realized!==0?`<span class="chip">Đã chốt <b class="${dir(S.realized)}">${S.realized>0?'+':''}${fmt(S.realized)}</b></span>`:''}<span class="chip" style="font-weight:500">${esc(P.coverage)} · nội dung tự đổi theo lần Đồng bộ gần nhất</span></div><div class="rule"><b>Nguyên tắc:</b> xử lý mã yếu trước → giữ mã khỏe → chỉ tăng tỷ trọng khi giá và khối lượng cùng xác nhận.</div>`;
  $('#pNote').textContent='Nhấn một mã để mở biểu đồ và kế hoạch · kích thước ô theo tỷ trọng tài sản · màu theo lãi/lỗ';
  const N=P.names||{};
  $('#guides').innerHTML=`<div class="gd" style="--c:#e11d48"><span class="tag d">ƯU TIÊN XỬ LÝ</span>${esc(N.sell)} — theo dõi hỗ trợ/cắt giảm trước, không bình quân giá xuống khi xu hướng chưa cải thiện.</div><div class="gd" style="--c:#f59e0b"><span class="tag" style="color:var(--wait)">CHỜ XÁC NHẬN</span>${esc(N.wait)} — chưa mua thêm chỉ vì giá giảm hoặc một phiên hồi.</div><div class="gd" style="--c:#10b981"><span class="tag u">TIẾP TỤC GIỮ</span>${esc(N.hold)} — giữ khi còn trên mốc bảo vệ và chưa xuất hiện tín hiệu bán mới.</div>`;
@@ -317,7 +347,7 @@ function renderPort(){const rows=P.rows||[];
  $('#heatp').innerHTML=rows.map((p,i)=>{const [w,h]=ps[i]||[2,1];return `<div class="tile${h>1?'':' c'}" data-tk="${esc(p.t)}" style="grid-column:span ${w};grid-row:span ${h};background:${tone((p.pnlPct||0)/5)},var(--c1)"><span class="shine"></span><div class="tk">${h>1?'':`<i class="rd" style="background:${REC[p.rec]}"></i>`}${esc(p.t)}</div><div class="px num">${fmt(p.p)} · SL ${fmt(p.qty)}</div><div class="pc num ${dir(p.pnlPct)}">${arrow(p.pnlPct)} ${pc(p.pnlPct)}</div>${h>1?`<div class="rcd">${rcs(p.rec,p.recText)}</div>`:''}${spark(p.spark,(p.pnl||0)>=0)}</div>`}).join('');
  const L=[['Bán / giảm tỷ trọng',['s'],'#e11d48'],['Chờ xác nhận / Chưa đủ dữ liệu',['y','n'],'#f59e0b'],['Giữ tiếp',['g'],'#10b981']];
  $('#lanesp').innerHTML=L.map(l=>{const it=rows.filter(p=>l[1].includes(p.rec));return `<div class="lane"><h3><span class="dot" style="background:${l[2]};box-shadow:0 0 0 4px ${l[2]}33;animation:none"></span>${l[0]}<em>${it.length}</em></h3>${it.map(p=>`<div class="sig" data-tk="${esc(p.t)}" style="--c:${l[2]}"><div><div class="tk">${esc(p.t)}</div><div class="ex">SL ${fmt(p.qty)}</div></div><div class="pr"><b class="num">${fmt(p.p)}</b> <b class="num ${dir(p.pnlPct)}" style="font-size:12px">${pc(p.pnlPct)}</b><small class="num ${dir(p.pnl)}">Lãi/Lỗ ${isN(p.pnl)?fmt(p.pnl):'—'} · vốn ${fmt(p.cost)}</small></div>${spark(p.spark,(p.pnl||0)>=0)}${ring(p.conf)}</div>`).join('')||'<div class="k" style="padding:12px 10px">Chưa có mã</div>'}</div>`}).join('');
- $('#tbl2').innerHTML=hdrHTML('t2','pf',[['Mã','t'],['SL','qty'],['Giá vốn / Hiện tại','p'],['% phiên trước','chg'],['Xu hướng','trd'],['Lãi/Lỗ','pnl'],['Độ rõ','conf'],['Khuyến nghị','rec']])+sortRows(rows,'t2').map(p=>`<div class="tr pf" data-tk="${esc(p.t)}"><b>${esc(p.t)}</b><span>${fmt(p.qty)}</span><span>Vốn: ${fmt(p.cost)}<br>Hiện tại: ${fmt(p.p)}</span><b class="num ${dir(p.chg)}">${pc(p.chg)}</b><span class="tsp" title="Giá 24 phiên gần nhất">${tspark(p.spark)}</span><b class="num ${dir(p.pnl)}">${isN(p.pnl)?((p.pnl>0?'+':'')+fmt(p.pnl)):'—'}<br>(${pc(p.pnlPct)})</b>${ring(p.conf)}${rcs(p.rec,p.recText)}</div>`).join('');
+ $('#tbl2').innerHTML=hdrHTML('t2','pf',[['Mã','t'],['SL','qty'],['Giá vốn / Hiện tại','p'],['% phiên trước','chg'],['Xu hướng','trd'],['Lãi/Lỗ','pnl'],['Độ rõ','conf'],['Khuyến nghị','rec']])+sortRows(rows,'t2').map(p=>`<div class="tr pf" data-tk="${esc(p.t)}"><b>${esc(p.t)}</b><span>${fmt(p.qty)}</span><span>Vốn: ${fmt(p.cost)}<br>Hiện tại: ${fmt(p.p)}</span><b class="num ${dir(p.chg)}">${pc(p.chg)}</b>${tspark(p,'t2')}<b class="num ${dir(p.pnl)}">${isN(p.pnl)?((p.pnl>0?'+':'')+fmt(p.pnl)):'—'}<br>(${pc(p.pnlPct)})</b>${ring(p.conf)}${rcs(p.rec,p.recText)}</div>`).join('');
  treemap('#tm1',rows.map(p=>({t:p.t,v:p.totalCost})),'Chưa có vốn ban đầu để vẽ sơ đồ.');
  const cur=rows.filter(p=>isN(p.value)&&p.value>0).map(p=>({t:p.t,v:p.value}));
  treemap('#tm2',cur,'Bấm ĐỒNG BỘ để lấy giá hiện tại rồi mới vẽ tỷ trọng tài sản.')}
@@ -451,6 +481,7 @@ document.addEventListener('scroll',e=>{if(e.target.classList&&e.target.classList
 window.addEventListener('resize',updAllFades);
 (function(){const a=renderTop,b=renderPort,c=setPage;renderTop=function(){a();updAllFades()};renderPort=function(){b();updAllFades()};setPage=function(p){c(p);updAllFades()}})();
 updAllFades();
+updSpkSeg();
 if(D.open)openDetail(D.open);
 </script>
 </body></html>
