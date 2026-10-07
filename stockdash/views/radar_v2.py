@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from ..news_service import all_cached, combine, has_ai_key, model_name
 from ..portfolio import aggregate_portfolio
 from ..storage import load_portfolio
 from ..ui_common import (
@@ -28,6 +29,7 @@ from .analysis import (
 from .portfolio import _ensure_confidence_value as _conf_port
 
 _TEMPLATE = Path(__file__).resolve().parent.parent / "radar_v2.html"
+_CALIB = Path(__file__).resolve().parent.parent / "calibration.json"
 TOP_N = 10
 _OVERLAYS = ["EMA20", "MA50", "MA200"]
 
@@ -321,7 +323,23 @@ def render_radar_v2(
         except Exception:
             continue
 
+    # Nhận định tin tức do AI (đọc từ bộ nhớ đệm; không gọi AI tại đây) + ghép với khuyến nghị kỹ thuật.
+    tech_cls = {r["t"]: r["rec"] for r in top_rows}
+    tech_cls.update({r["t"]: r["rec"] for r in port.get("rows", [])})
+    news = {}
+    for tk, item in all_cached(detail.keys()).items():
+        news[tk] = {
+            "ts": item.get("ts"), "model": item.get("model"), "stale": bool(item.get("stale")),
+            "result": item.get("result"), "headlines": item.get("headlines", []),
+            "combined": combine(tech_cls.get(tk, "n"), item),
+        }
+
+    try:
+        calib = json.loads(_CALIB.read_text(encoding="utf-8"))
+    except Exception:
+        calib = None
     data = {
+        "calib": calib, "ai": {"enabled": has_ai_key(), "model": model_name()}, "news": news,
         "dark": bool(dark), "note": price_note, "indices": _indices(bundle),
         "regime": ({k: regime.get(k) for k in ("score", "label", "risk", "breadth")} if regime else None),
         "top": top_rows, "port": port, "detail": detail, "open": (open_ticker or "").upper() or None, "tab": "market",

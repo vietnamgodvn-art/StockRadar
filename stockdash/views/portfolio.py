@@ -148,7 +148,7 @@ def _portfolio_grid(portfolio: pd.DataFrame, key: str) -> str | None:
         'Giá vốn / Hiện tại': [f'Vốn: {fmt0(a)}\nHiện tại: {fmt0(b)}' for a, b in zip(avg_cost, close_now)],
         '% phiên trước': [day_label(c) for c in day_change],
         'Lãi/Lỗ': [pnl_label(a, b) for a, b in zip(pnl_abs, pnl_pct)],
-        'Điểm tin cậy': portfolio.apply(_ensure_confidence_value, axis=1),
+        'Độ rõ tín hiệu': portfolio.apply(_ensure_confidence_value, axis=1),
         'Khuyến nghị': portfolio.get('action_now', pd.Series([''] * len(portfolio))).astype(str),
     })
 
@@ -277,7 +277,7 @@ def _portfolio_grid(portfolio: pd.DataFrame, key: str) -> str | None:
         gb.configure_column('Giá vốn / Hiện tại', width=166, minWidth=154, maxWidth=180, cellStyle=cost_now_style)
         gb.configure_column('% phiên trước', width=104, minWidth=96, maxWidth=114, cellStyle=day_style)
         gb.configure_column('Lãi/Lỗ', width=132, minWidth=122, maxWidth=144, cellStyle=pnl_style, comparator=pnl_sort)
-        gb.configure_column('Điểm tin cậy', width=112, minWidth=104, maxWidth=118, type=['numericColumn'], cellStyle=donut_style)
+        gb.configure_column('Độ rõ tín hiệu', width=112, minWidth=104, maxWidth=118, type=['numericColumn'], cellStyle=donut_style)
         gb.configure_column('Khuyến nghị', minWidth=178, flex=0.9, cellStyle=rec_style)
 
         opts = gb.build()
@@ -288,7 +288,7 @@ def _portfolio_grid(portfolio: pd.DataFrame, key: str) -> str | None:
         opts['rowHeight'] = 78
         opts['headerHeight'] = 42
         response = AgGrid(
-            view[['Mã', 'SL', 'Giá vốn / Hiện tại', '% phiên trước', 'Lãi/Lỗ', 'Điểm tin cậy', 'Khuyến nghị', '_ticker', '_avg_cost', '_close_now', '_day_change', '_pnl']],
+            view[['Mã', 'SL', 'Giá vốn / Hiện tại', '% phiên trước', 'Lãi/Lỗ', 'Độ rõ tín hiệu', 'Khuyến nghị', '_ticker', '_avg_cost', '_close_now', '_day_change', '_pnl']],
             gridOptions=opts,
             height=610,
             theme='streamlit', custom_css=AGGRID_CSS,
@@ -300,7 +300,7 @@ def _portfolio_grid(portfolio: pd.DataFrame, key: str) -> str | None:
         )
         return _selected_ticker_from_aggrid(response)
 
-    fallback = view[['_ticker', 'Mã', 'SL', 'Giá vốn / Hiện tại', '% phiên trước', 'Lãi/Lỗ', 'Điểm tin cậy', 'Khuyến nghị']].copy()
+    fallback = view[['_ticker', 'Mã', 'SL', 'Giá vốn / Hiện tại', '% phiên trước', 'Lãi/Lỗ', 'Độ rõ tín hiệu', 'Khuyến nghị']].copy()
     event = st.dataframe(
         fallback.drop(columns=['_ticker']), width='stretch', hide_index=True, height=610,
         on_select='rerun', selection_mode='single-row', key=key + '_fallback',
@@ -310,7 +310,7 @@ def _portfolio_grid(portfolio: pd.DataFrame, key: str) -> str | None:
             'Giá vốn / Hiện tại': st.column_config.TextColumn(width='medium'),
             '% phiên trước': st.column_config.TextColumn(width='small'),
             'Lãi/Lỗ': st.column_config.TextColumn(width='medium'),
-            'Điểm tin cậy': st.column_config.ProgressColumn('Điểm tin cậy', min_value=0, max_value=100, format='%d', width='small'),
+            'Độ rõ tín hiệu': st.column_config.ProgressColumn('Độ rõ tín hiệu', min_value=0, max_value=100, format='%d', width='small'),
             'Khuyến nghị': st.column_config.TextColumn(width='medium'),
         },
     )
@@ -510,7 +510,7 @@ def _portfolio_overview_html(portfolio: pd.DataFrame, pnl_pct: float, priced_cou
           <div class="pf-stat"><div class="n" style="color:var(--up);">{hold_count}</div><div class="t">Giữ tiếp</div></div>
           <div class="pf-stat"><div class="n" style="color:var(--wait);">{wait_count}</div><div class="t">Chờ / Chưa rõ</div></div>
         </div>
-        <div class="pf-foot">Tin cậy TB: <b>{avg_conf}/100</b> · Mã đang lãi: <b style="color:var(--up);">{win_count}</b> · Mã đang lỗ: <b style="color:var(--down);">{loss_count}</b></div>
+        <div class="pf-foot">Độ rõ TB: <b>{avg_conf}/100</b> · Mã đang lãi: <b style="color:var(--up);">{win_count}</b> · Mã đang lỗ: <b style="color:var(--down);">{loss_count}</b></div>
       </div>
       <div class="pf-card">
         <div class="pf-k">ĐỊNH HƯỚNG HÀNH ĐỘNG CHO LIST MÃ HIỆN TẠI</div>

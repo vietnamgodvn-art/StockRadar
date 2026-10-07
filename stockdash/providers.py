@@ -236,7 +236,8 @@ class VnstockProvider:
         if date_col is None:
             return pd.DataFrame()
         out = pd.DataFrame()
-        out["date"] = pd.to_datetime(df[date_col], errors="coerce")
+        # Chuẩn hoá về 00:00 để khớp với ngày của cổ phiếu (một số nguồn trả 07:00 → không ghép được RS20).
+        out["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
         for c in ("open", "high", "low", "close"):
             out[c] = pd.to_numeric(df[c], errors="coerce") if c in df.columns else np.nan
         vol_col = next((c for c in ("volume", "total_volume", "match_volume") if c in df.columns), None)
@@ -419,6 +420,14 @@ class VnstockProvider:
         api = self._api()
         idx = getattr(api, "index", None)
         attempts = []
+        # Ưu tiên Quote: trả đủ lịch sử (8 năm) cho chỉ số; hàm index() cũ chỉ trả ~100 phiên gần nhất,
+        # làm MA200 của VN-Index trống và điểm "Trạng thái thị trường" sai.
+        try:
+            from vnstock import Quote
+            attempts.append(lambda: Quote(source="VCI", symbol=symbol).history(start=start.isoformat(), end=end.isoformat(), interval="1D"))
+            attempts.append(lambda: Quote(source="KBS", symbol=symbol).history(start=start.isoformat(), end=end.isoformat(), interval="1D"))
+        except Exception:
+            pass
         if idx is not None:
             if hasattr(idx, "ohlcv"):
                 attempts.append(lambda: idx.ohlcv(symbol=symbol, start=start.isoformat(), end=end.isoformat()))

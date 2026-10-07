@@ -280,13 +280,13 @@ def _prepare_grid(view: pd.DataFrame, regime: dict) -> pd.DataFrame:
             'Giá': _finite(r.get('close')),
             'Tăng/Giảm': move,
             'KL khớp hôm nay': _finite(r.get('volume')),
-            'Điểm tin cậy': _ensure_confidence_value(r),
+            'Độ rõ tín hiệu': _ensure_confidence_value(r),
             'Khuyến nghị mua': _trend_rec(r, regime),
         })
     df = pd.DataFrame(rows)
     # Ô thiếu dữ liệu (ví dụ trước giờ mở cửa chưa có giá khớp) phải là rỗng để bảng hiện "—";
     # nếu để NaN thì st_aggrid gửi 0 và bảng hiện giá 0 gây hiểu nhầm.
-    for col in ('Giá', 'KL khớp hôm nay', 'Điểm tin cậy'):
+    for col in ('Giá', 'KL khớp hôm nay', 'Độ rõ tín hiệu'):
         if col in df.columns and df[col].isna().any():
             df[col] = df[col].astype(object).where(df[col].notna(), None)
     return df
@@ -443,9 +443,9 @@ def _render_stock_grid(grid_df: pd.DataFrame, key: str) -> str | None:
         gb.configure_column('Tăng/Giảm', width=96, minWidth=88, maxWidth=112, cellStyle=change_style)
         gb.configure_column('KL khớp hôm nay', headerName='KL khớp', width=104, minWidth=92, maxWidth=126, type=['numericColumn'], valueFormatter=comma0)
         gb.configure_column(
-            'Điểm tin cậy', headerName='Tin cậy', width=80, minWidth=74, maxWidth=96,
+            'Độ rõ tín hiệu', headerName='Độ rõ', width=80, minWidth=74, maxWidth=96,
             type=['numericColumn'], cellStyle=donut_style,
-            headerTooltip='Mức độ tin cậy của đánh giá/khuyến nghị theo độ đồng thuận của bộ quy tắc hiện tại; không phải xác suất thắng được kiểm định.'
+            headerTooltip='Độ rõ của tín hiệu: điểm càng xa mức trung tính (50) thì càng rõ, theo cả hai phía (rất tốt lẫn rất xấu). Không phải xác suất đúng; xem số đo lịch sử của mức điểm trong cửa sổ chi tiết.'
         )
         gb.configure_column('Khuyến nghị mua', headerName='Khuyến nghị', minWidth=170, flex=1.35, cellStyle=rec_style)
         opts = gb.build()
@@ -472,9 +472,9 @@ def _render_stock_grid(grid_df: pd.DataFrame, key: str) -> str | None:
             'Giá': st.column_config.NumberColumn(format='%,.0f', width='small'),
             'Tăng/Giảm': st.column_config.TextColumn(width='small'),
             'KL khớp hôm nay': st.column_config.NumberColumn(format='%,.0f', width='medium'),
-            'Điểm tin cậy': st.column_config.ProgressColumn(
-                'Điểm tin cậy', min_value=0, max_value=100, format='%d', width='small',
-                help='Mức độ tin cậy của đánh giá/khuyến nghị; không phải xác suất thắng.'
+            'Độ rõ tín hiệu': st.column_config.ProgressColumn(
+                'Độ rõ tín hiệu', min_value=0, max_value=100, format='%d', width='small',
+                help='Độ rõ của tín hiệu: điểm càng xa mức trung tính (50) thì càng rõ, theo cả hai phía (rất tốt lẫn rất xấu). Không phải xác suất đúng; xem số đo lịch sử của mức điểm trong cửa sổ chi tiết.'
             ),
             'Khuyến nghị mua': st.column_config.TextColumn(width='large'),
         },
@@ -490,14 +490,14 @@ def _apply_settings(view: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
         return view
     c1, c2 = st.columns([5.5, .6])
     with c1:
-        st.caption('Bấm tiêu đề để sắp xếp · nút Bộ lọc để lọc · Điểm tin cậy = độ đáng tin của khuyến nghị · click mã để đổi biểu đồ.')
+        st.caption('Bấm tiêu đề để sắp xếp · nút Bộ lọc để lọc · Độ rõ tín hiệu = điểm càng xa mức trung tính thì tín hiệu càng rõ (không phải xác suất đúng) · click mã để đổi biểu đồ.')
     with c2:
         with st.popover('Bộ lọc', width='stretch', icon=':material/tune:'):
             st.markdown('**Tùy chọn bảng**')
             q = st.text_input('Tìm mã', key=f'{key_prefix}_ticker_filter', placeholder='HPG...').strip().upper()
             exchanges = sorted({_display_exchange(x) for x in view.get('exchange', pd.Series(dtype=str)).dropna().astype(str) if str(x).strip()})
             ex_sel = st.multiselect('Sàn', exchanges, key=f'{key_prefix}_exchange_filter')
-            min_score = st.number_input('Điểm tin cậy tối thiểu', 0, 100, 0, 5, key=f'{key_prefix}_score_filter')
+            min_score = st.number_input('Độ rõ tín hiệu tối thiểu', 0, 100, 0, 5, key=f'{key_prefix}_score_filter')
             trend = st.selectbox('Xu hướng', ['Tất cả', 'Tăng', 'Trung lập', 'Giảm/Yếu'], key=f'{key_prefix}_trend_filter')
             min_vol = st.number_input('KL khớp tối thiểu', min_value=0.0, value=0.0, step=100000.0, format='%.0f', key=f'{key_prefix}_vol_filter')
     out = view.copy()
@@ -506,7 +506,7 @@ def _apply_settings(view: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
     if ex_sel:
         out = out[out['exchange'].astype(str).map(_display_exchange).isin(ex_sel)]
     if min_score > 0 and not out.empty:
-        # Lọc đúng con số đang hiển thị ở cột Điểm tin cậy.
+        # Lọc đúng con số đang hiển thị ở cột Độ rõ tín hiệu.
         shown_conf = out.apply(_ensure_confidence_value, axis=1)
         out = out[pd.to_numeric(shown_conf, errors='coerce').fillna(-1) >= min_score]
     if min_vol > 0:

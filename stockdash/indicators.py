@@ -61,7 +61,11 @@ def add_indicators(df: pd.DataFrame, benchmark: pd.DataFrame | None = None) -> p
 
     if benchmark is not None and len(benchmark) > 25:
         b = benchmark.copy().sort_values("date")[["date", "close"]].rename(columns={"close": "bench_close"})
-        merged = out[["date", "close"]].merge(b, on="date", how="left")
+        b["date"] = pd.to_datetime(b["date"], errors="coerce").dt.normalize()
+        b = b.dropna(subset=["date"]).drop_duplicates("date", keep="last")
+        left = out[["date", "close"]].copy()
+        left["date"] = pd.to_datetime(left["date"], errors="coerce").dt.normalize()
+        merged = left.merge(b, on="date", how="left")
         stock_r20 = merged["close"].pct_change(20) * 100
         bench_r20 = merged["bench_close"].pct_change(20) * 100
         out["relative_strength20"] = (stock_r20 - bench_r20).values

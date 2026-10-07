@@ -158,6 +158,15 @@ html,body{background:var(--bg)}
 .tmi{position:absolute;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.35;cursor:pointer;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 4px rgba(15,23,42,.1)}
 .tmi:hover{filter:brightness(1.06)}
 .modal select{font:inherit;color:inherit}
+.news{border-radius:20px;background:var(--blk);box-shadow:var(--well);padding:16px 18px;color:var(--ink2);font-size:12.8px}
+.news h4{font-size:13.5px;color:var(--ink)}
+.nhs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.nh{background:var(--c1);border-radius:16px;padding:12px 14px;box-shadow:var(--sm)}
+.ev{display:flex;gap:10px;padding:8px 0;border-top:1px solid rgba(148,163,184,.25)}
+.evd{width:18px;flex:none;text-align:center;font-weight:800;color:var(--ink3)}
+.evc{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--in);font-size:11px;color:var(--ink2);margin:0 4px}
+.nl{margin:0;padding-left:18px;line-height:1.55}.nl li{margin:2px 0}
+@media(max-width:760px){.nhs{grid-template-columns:1fr}}
 </style></head><body><div class="mesh"><i></i><i></i><i></i></div>
 <div class="ticker"><div class="belt" id="belt"></div></div>
 <div class="wrap">
@@ -170,13 +179,13 @@ html,body{background:var(--bg)}
         <div class="fpop" id="fPop">
           <label>Tìm mã<input id="fq" placeholder="HPG…"></label>
           <label>Sàn<select id="fex"><option value="">Tất cả</option><option>HSX</option><option>HNX</option><option>UPCoM</option></select></label>
-          <label>Điểm tin cậy tối thiểu<input id="fsc" type="number" min="0" max="100" value="0"></label>
+          <label>Độ rõ tín hiệu tối thiểu<input id="fsc" type="number" min="0" max="100" value="0"></label>
           <label>Xu hướng<select id="ftr"><option>Tất cả</option><option>Tăng</option><option>Trung lập</option><option>Giảm/Yếu</option></select></label>
           <label>KL khớp tối thiểu<input id="fvol" type="number" min="0" value="0" step="100000"></label>
         </div></div>
     </div>
     <div class="view" id="v1"><div class="heat" id="heat"></div>
-      <div class="sec"><h2>Bảng chi tiết</h2><span class="note">Mã · Sàn · Giá · Tăng/Giảm · KL khớp · Tin cậy · Khuyến nghị</span></div>
+      <div class="sec"><h2>Bảng chi tiết</h2><span class="note">Mã · Sàn · Giá · Tăng/Giảm · KL khớp · Độ rõ · Khuyến nghị</span></div>
       <div class="card tbl" id="tbl1"></div></div>
     <div class="view" id="v2"><div class="lanes" id="lanes"></div></div>
     <div id="mEmpty" class="card" style="display:none"></div>
@@ -194,7 +203,7 @@ html,body{background:var(--bg)}
       <div class="guides" id="guides"></div>
       <div class="view" id="p1"><div class="heat" id="heatp"></div></div>
       <div class="view" id="p2"><div class="lanes" id="lanesp"></div></div>
-      <div class="sec"><h2>Danh mục chi tiết</h2><span class="note">Giá vốn / Hiện tại · % phiên trước · Lãi/Lỗ · Điểm tin cậy · Khuyến nghị</span></div>
+      <div class="sec"><h2>Danh mục chi tiết</h2><span class="note">Giá vốn / Hiện tại · % phiên trước · Lãi/Lỗ · Độ rõ tín hiệu · Khuyến nghị</span></div>
       <div class="card tbl" id="tbl2"></div>
       <div class="sec"><h2>Tỷ trọng danh mục</h2></div>
       <div class="tm">
@@ -253,12 +262,12 @@ const spans=[[4,2],[4,2],[4,2],[3,2],[3,2],[3,2],[3,2],[4,1],[4,1],[4,1]];
 function topFiltered(){const q=$('#fq').value.trim().toUpperCase(),ex=$('#fex').value,sc=+$('#fsc').value||0,tr=$('#ftr').value,vol=+$('#fvol').value||0;
  return (D.top||[]).filter(m=>(!q||m.t.includes(q))&&(!ex||m.ex===ex)&&(sc<=0||(m.conf||-1)>=sc)&&(tr==='Tất cả'||m.trend===tr)&&(vol<=0||(m.vol||0)>=vol))}
 function renderTop(){const rows=topFiltered();$('#topN').textContent=rows.length;
- $('#mNote').textContent=D.top&&D.top.length?'Nhấn một mã để mở phân tích · kích thước ô theo điểm tin cậy · màu theo biến động':'';
+ $('#mNote').textContent=D.top&&D.top.length?'Nhấn một mã để mở phân tích · kích thước ô theo độ rõ tín hiệu · màu theo biến động':'';
  $('#mEmpty').style.display=D.top&&D.top.length?'none':'block';
  if(!(D.top&&D.top.length)){$('#mEmpty').innerHTML='Chưa có dữ liệu. Bấm <b>ĐỒNG BỘ</b> để lấy giá thật; dùng <b>CẬP NHẬT TOÀN BỘ</b> khi muốn tính toàn bộ chỉ báo kỹ thuật.';}
  const sorted=rows.slice().sort((a,b)=>(b.conf||0)-(a.conf||0));
  $('#heat').innerHTML=sorted.map((m,i)=>{const [w,h]=spans[i]||[3,1];return `<div class="tile${h>1?'':' c'}" data-tk="${esc(m.t)}" style="grid-column:span ${w};grid-row:span ${h};background:${tone(m.chg)},var(--c1)"><span class="shine"></span><div class="tk">${h>1?'':`<i class="rd" style="background:${REC[m.rec]}"></i>`}${esc(m.t)}</div><div class="px num">${fmt(m.p)}</div><div class="pc num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</div>${h>1?`<div class="rcd">${rcs(m.rec,m.recText)}</div>`:''}${spark(m.spark,(m.chg||0)>=0)}</div>`}).join('');
- $('#tbl1').innerHTML='<div class="tr h"><span>Mã</span><span>Sàn</span><span>Giá</span><span>Tăng/Giảm</span><span>KL khớp</span><span>Tin cậy</span><span>Khuyến nghị</span></div>'+rows.map(m=>`<div class="tr" data-tk="${esc(m.t)}"><b>${esc(m.t)}</b><span class="k" style="letter-spacing:0">${esc(m.ex)}</span><b class="num">${fmt(m.p)}</b><b class="num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</b><span class="num">${fmt(m.vol)}</span>${ring(m.conf)}${rcs(m.rec,m.recText)}</div>`).join('');
+ $('#tbl1').innerHTML='<div class="tr h"><span>Mã</span><span>Sàn</span><span>Giá</span><span>Tăng/Giảm</span><span>KL khớp</span><span>Độ rõ</span><span>Khuyến nghị</span></div>'+rows.map(m=>`<div class="tr" data-tk="${esc(m.t)}"><b>${esc(m.t)}</b><span class="k" style="letter-spacing:0">${esc(m.ex)}</span><b class="num">${fmt(m.p)}</b><b class="num ${dir(m.chg)}">${arrow(m.chg)} ${pc(m.chg)}</b><span class="num">${fmt(m.vol)}</span>${ring(m.conf)}${rcs(m.rec,m.recText)}</div>`).join('');
  const L=[['Chưa nên mua / Chưa đủ dữ liệu',['r','n'],'#e11d48'],['Chờ xác nhận',['y'],'#f59e0b'],['Có thể mua thăm dò',['g'],'#10b981']];
  $('#lanes').innerHTML=L.map(l=>{const it=rows.filter(m=>l[1].includes(m.rec));return `<div class="lane"><h3><span class="dot" style="background:${l[2]};box-shadow:0 0 0 4px ${l[2]}33;animation:none"></span>${l[0]}<em>${it.length}</em></h3>${it.map(m=>`<div class="sig" data-tk="${esc(m.t)}" style="--c:${REC[m.rec]}"><div><div class="tk">${esc(m.t)}</div><div class="ex">${esc(m.ex)}</div></div><div class="pr"><b class="num">${fmt(m.p)}</b> <b class="num ${dir(m.chg)}" style="font-size:12px">${pc(m.chg)}</b><small class="num">KL ${fmt(m.vol)}</small></div>${spark(m.spark,(m.chg||0)>=0)}${ring(m.conf)}</div>`).join('')||'<div class="k" style="padding:12px 10px">Chưa có mã</div>'}</div>`}).join('')}
 ['fq','fex','fsc','ftr','fvol'].forEach(i=>$('#'+i).addEventListener('input',renderTop));
@@ -273,7 +282,7 @@ function renderPort(){const rows=P.rows||[];
  if(!rows.length){$('#pEmpty').innerHTML='Danh mục đang trống. Dùng nút <b>＋ Danh mục</b> ở thanh trên để thêm vị thế đầu tiên.';return}
  const S=P.sum||{};
  $('#pfsL').innerHTML=`<div class="mv"><span class="k">Tổng giá vốn</span><b class="num">${fmt(S.cost)}</b><small>VND</small></div><div class="mv"><span class="k">Giá trị hiện tại</span><b class="num">${isN(S.value)?fmt(S.value):'—'}</b><small>VND</small></div><div class="mv ${(S.pnl||0)<0?'neg':''}"><span class="k">Lãi/Lỗ tạm tính</span><b class="num ${dir(S.pnl)}">${isN(S.pnl)?((S.pnl>0?'+':'')+fmt(S.pnl)):'—'}</b><small>${isN(S.pnlPct)?`<span class="pill ${S.pnlPct<0?'d':'u'}">${arrow(S.pnlPct)} ${pc(S.pnlPct)}</span>`:'VND'}</small></div><div class="mv"><span class="k">Số mã</span><b class="num">${S.count}</b><small><span class="pill u">▴ ${S.priced}/${S.count} đã có giá</span></small></div>`;
- $('#pfsR').innerHTML=`<div class="k">Tổng quan vị thế danh mục</div><div class="hl" style="color:${P.stateColor}">${esc(P.state)}</div><div class="ds">${P.desc}</div><div class="chips"><span class="chip">Tin cậy TB <b style="color:var(--ink)">${P.avgConf}/100</b></span><span class="chip">Mã đang lãi <b class="u">${P.win}</b></span><span class="chip">Mã đang lỗ <b class="d">${P.loss}</b></span><span class="chip" style="font-weight:500">${esc(P.coverage)} · nội dung tự đổi theo lần Đồng bộ gần nhất</span></div><div class="rule"><b>Nguyên tắc:</b> xử lý mã yếu trước → giữ mã khỏe → chỉ tăng tỷ trọng khi giá và khối lượng cùng xác nhận.</div>`;
+ $('#pfsR').innerHTML=`<div class="k">Tổng quan vị thế danh mục</div><div class="hl" style="color:${P.stateColor}">${esc(P.state)}</div><div class="ds">${P.desc}</div><div class="chips"><span class="chip">Độ rõ TB <b style="color:var(--ink)">${P.avgConf}/100</b></span><span class="chip">Mã đang lãi <b class="u">${P.win}</b></span><span class="chip">Mã đang lỗ <b class="d">${P.loss}</b></span><span class="chip" style="font-weight:500">${esc(P.coverage)} · nội dung tự đổi theo lần Đồng bộ gần nhất</span></div><div class="rule"><b>Nguyên tắc:</b> xử lý mã yếu trước → giữ mã khỏe → chỉ tăng tỷ trọng khi giá và khối lượng cùng xác nhận.</div>`;
  $('#pNote').textContent='Nhấn một mã để mở biểu đồ và kế hoạch · kích thước ô theo tỷ trọng tài sản · màu theo lãi/lỗ';
  const N=P.names||{};
  $('#guides').innerHTML=`<div class="gd" style="--c:#e11d48"><span class="tag d">ƯU TIÊN XỬ LÝ</span>${esc(N.sell)} — theo dõi hỗ trợ/cắt giảm trước, không bình quân giá xuống khi xu hướng chưa cải thiện.</div><div class="gd" style="--c:#f59e0b"><span class="tag" style="color:var(--wait)">CHỜ XÁC NHẬN</span>${esc(N.wait)} — chưa mua thêm chỉ vì giá giảm hoặc một phiên hồi.</div><div class="gd" style="--c:#10b981"><span class="tag u">TIẾP TỤC GIỮ</span>${esc(N.hold)} — giữ khi còn trên mốc bảo vệ và chưa xuất hiện tín hiệu bán mới.</div>`;
@@ -281,7 +290,7 @@ function renderPort(){const rows=P.rows||[];
  $('#heatp').innerHTML=rows.map((p,i)=>{const [w,h]=ps[i]||[2,1];return `<div class="tile${h>1?'':' c'}" data-tk="${esc(p.t)}" style="grid-column:span ${w};grid-row:span ${h};background:${tone((p.pnlPct||0)/5)},var(--c1)"><span class="shine"></span><div class="tk">${h>1?'':`<i class="rd" style="background:${REC[p.rec]}"></i>`}${esc(p.t)}</div><div class="px num">${fmt(p.p)} · SL ${fmt(p.qty)}</div><div class="pc num ${dir(p.pnlPct)}">${arrow(p.pnlPct)} ${pc(p.pnlPct)}</div>${h>1?`<div class="rcd">${rcs(p.rec,p.recText)}</div>`:''}${spark(p.spark,(p.pnl||0)>=0)}</div>`}).join('');
  const L=[['Bán / giảm tỷ trọng',['s'],'#e11d48'],['Chờ xác nhận / Chưa đủ dữ liệu',['y','n'],'#f59e0b'],['Giữ tiếp',['g'],'#10b981']];
  $('#lanesp').innerHTML=L.map(l=>{const it=rows.filter(p=>l[1].includes(p.rec));return `<div class="lane"><h3><span class="dot" style="background:${l[2]};box-shadow:0 0 0 4px ${l[2]}33;animation:none"></span>${l[0]}<em>${it.length}</em></h3>${it.map(p=>`<div class="sig" data-tk="${esc(p.t)}" style="--c:${l[2]}"><div><div class="tk">${esc(p.t)}</div><div class="ex">SL ${fmt(p.qty)}</div></div><div class="pr"><b class="num">${fmt(p.p)}</b> <b class="num ${dir(p.pnlPct)}" style="font-size:12px">${pc(p.pnlPct)}</b><small class="num ${dir(p.pnl)}">Lãi/Lỗ ${isN(p.pnl)?fmt(p.pnl):'—'} · vốn ${fmt(p.cost)}</small></div>${spark(p.spark,(p.pnl||0)>=0)}${ring(p.conf)}</div>`).join('')||'<div class="k" style="padding:12px 10px">Chưa có mã</div>'}</div>`}).join('');
- $('#tbl2').innerHTML='<div class="tr pf h"><span>Mã</span><span>SL</span><span>Giá vốn / Hiện tại</span><span>% phiên trước</span><span>Lãi/Lỗ</span><span>Tin cậy</span><span>Khuyến nghị</span></div>'+rows.map(p=>`<div class="tr pf" data-tk="${esc(p.t)}"><b>${esc(p.t)}</b><span>${fmt(p.qty)}</span><span>Vốn: ${fmt(p.cost)}<br>Hiện tại: ${fmt(p.p)}</span><b class="num ${dir(p.chg)}">${pc(p.chg)}</b><b class="num ${dir(p.pnl)}">${isN(p.pnl)?((p.pnl>0?'+':'')+fmt(p.pnl)):'—'}<br>(${pc(p.pnlPct)})</b>${ring(p.conf)}${rcs(p.rec,p.recText)}</div>`).join('');
+ $('#tbl2').innerHTML='<div class="tr pf h"><span>Mã</span><span>SL</span><span>Giá vốn / Hiện tại</span><span>% phiên trước</span><span>Lãi/Lỗ</span><span>Độ rõ</span><span>Khuyến nghị</span></div>'+rows.map(p=>`<div class="tr pf" data-tk="${esc(p.t)}"><b>${esc(p.t)}</b><span>${fmt(p.qty)}</span><span>Vốn: ${fmt(p.cost)}<br>Hiện tại: ${fmt(p.p)}</span><b class="num ${dir(p.chg)}">${pc(p.chg)}</b><b class="num ${dir(p.pnl)}">${isN(p.pnl)?((p.pnl>0?'+':'')+fmt(p.pnl)):'—'}<br>(${pc(p.pnlPct)})</b>${ring(p.conf)}${rcs(p.rec,p.recText)}</div>`).join('');
  treemap('#tm1',rows.map(p=>({t:p.t,v:p.totalCost})),'Chưa có vốn ban đầu để vẽ sơ đồ.');
  const cur=rows.filter(p=>isN(p.value)&&p.value>0).map(p=>({t:p.t,v:p.value}));
  treemap('#tm2',cur,'Bấm ĐỒNG BỘ để lấy giá hiện tại rồi mới vẽ tỷ trọng tài sản.')}
@@ -320,18 +329,38 @@ function expand(set){if(!set||!Array.isArray(set.t)||!set.t.length)return {candl
  for(let i=0;i<set.t.length;i++){const t=set.t[i];candles.push({time:t,open:set.o[i],high:set.h[i],low:set.l[i],close:set.c[i]});volumes.push({time:t,value:set.v[i]||0,color:set.c[i]>=set.o[i]?UPV:DNV});vs.push({time:t,value:set.vs[i]||0})}
  Object.entries(set.lines||{}).forEach(([n,vals])=>{lines[n]=[];vals.forEach((v,i)=>{if(v!==null&&v!==undefined)lines[n].push({time:set.t[i],value:v})})});
  return {candles,volumes,vs,lines,first:set.first,last:set.last}}
+const TONE={g:'var(--up)',r:'var(--dn)',y:'var(--wait)',n:'var(--ink2)'};
+function dots(n,c){let s='';for(let i=1;i<=5;i++)s+=`<i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;background:${i<=n?c:'var(--track)'}"></i>`;return s}
+function hz(label,sub,h){if(!h)return '';const up=h.direction==='TĂNG',dn=h.direction==='GIẢM',c=up?'var(--up)':(dn?'var(--dn)':'var(--ink2)');
+ return `<div class="nh"><div class="k" style="letter-spacing:.04em">${label} <span style="text-transform:none;font-weight:500;letter-spacing:0">· ${sub}</span></div><div style="display:flex;align-items:center;gap:10px;margin:6px 0 4px"><b style="font-size:17px;color:${c}">${up?'▴':(dn?'▾':'—')} ${esc(h.direction)}</b><span title="Độ mạnh ${h.strength}/5">${dots(h.strength,c)}</span></div><div style="font-size:12.5px;line-height:1.5;color:var(--ink2)">${esc(h.reason)}</div></div>`}
+function newsBlock(tk){const N=(D.news||{})[tk],ai=D.ai||{};
+ if(!N){return `<div class="blk" style="margin:0 20px 14px"><h4>Tin tức &amp; tác động đến giá</h4><div class="r">${ai.enabled?`Chưa có đánh giá tin tức cho <b>${esc(tk)}</b>. Bấm nút <b>Tin tức AI</b> ở thanh trên, chọn mã này rồi bấm <b>Phân tích</b>.`:'Chưa bật đánh giá tin tức bằng AI. Bấm nút <b>Tin tức AI</b> ở thanh trên để xem cách thêm khóa <code>ANTHROPIC_API_KEY</code>.'}</div></div>`}
+ const r=N.result||{},cb=N.combined,ev=(r.key_events||[]).map(e=>`<div class="ev"><span class="evd ${e.impact==='tích cực'?'u':(e.impact==='tiêu cực'?'d':'')}">${e.impact==='tích cực'?'▴':(e.impact==='tiêu cực'?'▾':'•')}</span><div><div style="font-size:12.5px"><b>${esc(e.date)}</b> <span class="evc">${esc(e.category)}</span> ${esc(e.title)}</div><div style="font-size:12px;color:var(--ink2);margin-top:2px">${esc(e.why)}</div></div></div>`).join('');
+ const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+ const hl=(N.headlines||[]).map(h=>`<li><span style="color:var(--ink3)">${esc(h.date)}</span> ${esc(h.title)}</li>`).join('');
+ return `<div class="news" style="margin:0 20px 14px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="margin:0">Tin tức &amp; tác động đến giá</h4>${cb?`<span class="rc" style="background:var(--in);color:${TONE[cb.tone]||'var(--ink)'}"><i style="background:${TONE[cb.tone]||'var(--ink2)'}"></i>${esc(cb.label)}</span>`:''}<span class="k" style="margin-left:auto;letter-spacing:0;text-transform:none;font-weight:500">${esc((N.ts||'').replace('T',' '))} · ${esc(N.model||'')}${N.stale?' · <b class="w">đã cũ, nên làm mới</b>':''}</span></div>
+ ${cb?`<div style="margin:8px 0 2px;font-size:13px;line-height:1.5"><b>Tổng hợp kỹ thuật + tin tức:</b> ${esc(cb.text)}</div>`:''}
+ <div style="margin:8px 0;font-size:13px;line-height:1.55;color:var(--ink)">${esc(r.summary)}</div>
+ <div class="nhs">${hz('NGẮN HẠN','khoảng 1–4 tuần',r.short_term)}${hz('DÀI HẠN','khoảng 6–12 tháng',r.long_term)}</div>
+ ${ev?`<div class="k" style="margin:12px 0 6px">Sự kiện đáng chú ý</div>${ev}`:''}
+ <div class="nhs" style="margin-top:10px">${(r.catalysts||[]).length?`<div><div class="k" style="margin-bottom:4px;color:var(--up)">Yếu tố hỗ trợ</div><ul class="nl">${li(r.catalysts)}</ul></div>`:''}${(r.risks||[]).length?`<div><div class="k" style="margin-bottom:4px;color:var(--dn)">Rủi ro cần theo dõi</div><ul class="nl">${li(r.risks)}</ul></div>`:''}</div>
+ <div style="margin-top:10px;font-size:11.5px;color:var(--ink3);line-height:1.5">${esc(r.data_note||'')} AI chỉ đọc <b>tiêu đề</b> tin (không đọc nội dung bài) và không biết giá đã phản ánh tin hay chưa. Đây là nhận định tham khảo, không phải lời khuyên đầu tư.</div>
+ ${hl?`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--ink2)">Xem ${(N.headlines||[]).length} tiêu đề tin đã dùng</summary><ul class="nl" style="margin-top:6px">${hl}</ul></details>`:''}</div>`}
+function histBand(score){const b=((D.calib||{}).bands||[]);return b.find(x=>score>=x.tu&&score<=x.den)||null}
+function histNote(score){const b=histBand(score);if(!b)return '';return `<div style="padding:8px 24px 0;font-size:11.8px;line-height:1.5;color:var(--ink2)"><b>Lịch sử thực tế của mức điểm ${b.tu}–${b.den}:</b> sau 20 phiên tăng trung bình <b class="${b.tb_20p>=0?'u':'d'}">${b.tb_20p>=0?'+':''}${String(b.tb_20p).replace('.',',')}%</b> (trung vị ${String(b.trung_vi_20p).replace('.',',')}%), vượt trung vị của rổ <b>${String(b.ty_le_hon_trung_vi).replace('.',',')}%</b> số lần, có lãi ${String(b.ty_le_lai).replace('.',',')}% số lần (${b.n.toLocaleString('en-US')} quan sát). <span style="color:var(--ink3)">Đo trên 48 mã 2019–2026, chưa trừ phí, có sai lệch người sống sót; lợi thế thực tế nhỏ (50% là ngang may rủi).</span></div>`}
 function openDetail(tk){const det=(D.detail||{})[tk];const m=$('#modal');m.style.width='';
  if(!det){m.innerHTML=`<div class="dh"><span class="t">${esc(tk)}</span><button class="x" id="mx">✕</button></div><div style="padding:10px 24px 26px;color:var(--ink2)">Chưa có dữ liệu biểu đồ cho mã ${esc(tk)}. Hãy bấm <b>CẬP NHẬT TOÀN BỘ</b>, hoặc chọn mã bằng ô <b>Tìm mã</b> ở thanh trên để tải riêng lịch sử mã này.</div>`;
   m.classList.add('on');$('#scrim').classList.add('on');$('#mx').onclick=closeAll;return}
  const I=det.info||{},pl=I.portfolio_plan;store.set('sr-open',tk);
  const chg=Number(I.change_pct||0),d=dir(chg),place=[I.sector,I.exchange].filter(Boolean).join(' · ');
- const chips=[`<span>Tin cậy <b>${esc(I.confidence??'—')}/100</b></span>`,`<span>RSI <b>${esc(I.rsi??'—')}</b></span>`,`<span>KL/TB20 <b>${esc(I.volume_ratio??'—')} lần</b></span>`];
+ const chips=[`<span>Độ rõ <b>${esc(I.confidence??'—')}/100</b></span>`,`<span>RSI <b>${esc(I.rsi??'—')}</b></span>`,`<span>KL/TB20 <b>${esc(I.volume_ratio??'—')} lần</b></span>`];
  if(isN(I.quantity))chips.push(`<span>SL <b>${fmt(I.quantity)}</b></span>`);if(isN(I.avg_cost))chips.push(`<span>Giá vốn <b>${fmt(I.avg_cost)}</b></span>`);if(isN(I.market_value))chips.push(`<span>Giá trị <b>${fmt(I.market_value)}</b></span>`);
  if(isN(I.pnl_pct))chips.push(`<span>Lãi/Lỗ <b class="${dir(I.pnl_pct)}">${arrow(I.pnl_pct)} ${Math.abs(I.pnl_pct).toFixed(2).replace('.',',')}%</b></span>`);if(isN(I.pnl_amount))chips.push(`<span>P/L <b class="${dir(I.pnl_amount)}">${I.pnl_amount>=0?'+':'-'}${fmt(Math.abs(I.pnl_amount))}</b></span>`);
  const ba=I.buy_action||'CHƯA XÁC ĐỊNH',bac=ba.includes('CÓ THỂ MUA')?'u':(ba.includes('CHƯA NÊN')?'d':'w');
  const act=pl?(pl.action||'CHƯA XÁC ĐỊNH'):'',actc=act.includes('BÁN')?'d':(act.includes('GIỮ')?'u':'w');
  m.innerHTML=`<div class="dh"><span class="t">${esc(tk)}</span><span class="p num ${d}">${fmt(I.price)} ${arrow(chg)}</span><b class="${d}">${pc(chg)}</b>${place?`<span class="chip">${esc(place)}</span>`:''}<span class="k" style="margin-left:auto;letter-spacing:0">${esc([I.date_text,I.source].filter(Boolean).join(' · '))}</span><button class="x" id="mx">✕</button></div>
  <div class="kv">${chips.join('')}</div>
+ ${histNote(I.score)}
  <div style="padding:10px 24px 0;font-size:13px;line-height:1.5">${I.demo_warning?'<b class="d">MÔ PHỎNG · </b>':''}<b>${esc(I.recommendation||'')}</b>${I.explanation?' · '+esc(I.explanation):''}</div>
  <div class="tools"><span class="sel2"><select id="cType" style="all:unset;cursor:pointer"><option>Nến</option><option>Đường</option><option>Vùng</option></select></span><span class="k" style="margin-left:8px">Chỉ báo</span><button class="tb on" data-ov="EMA20">EMA20</button><button class="tb on" data-ov="MA50">MA50</button><button class="tb on" data-ov="MA200">MA200</button><span style="flex:1"></span>
   <button class="tb" data-r="1m">1T</button><button class="tb" data-r="3m">3T</button><button class="tb" data-r="6m">6T</button><button class="tb" data-r="1y">1N</button><button class="tb" data-r="3y">3N</button><button class="tb on" data-r="all">Tất cả</button>
@@ -340,6 +369,7 @@ function openDetail(tk){const det=(D.detail||{})[tk];const m=$('#modal');m.style
  <div class="k" style="padding:6px 24px 0;letter-spacing:0;text-transform:none;font-size:11px;font-weight:500">HT/KC = hỗ trợ/kháng cự${isN(det.cost)?' · GV = giá vốn':''}. Đường chấm tương lai = ngoại suy xu hướng tổng hợp 1T–3T–6T, không phải cam kết giá. · TradingView Lightweight Charts™</div>
  <div class="cols"><div class="blk"><h4>Khuyến nghị mua hiện tại: <span class="${bac}">${esc(ba)}</span></h4><div class="r"><b class="k2">Vì sao:</b> ${esc(I.why||'Chưa đủ dữ liệu để giải thích sâu.')}</div><div class="r"><b class="k2" style="color:var(--ac)">Dấu hiệu chờ điểm mua:</b> ${esc(I.entry||'Chưa đủ dữ liệu để xác định điều kiện chờ điểm mua.')}</div><div class="r"><b class="k2" style="color:var(--wait)">Tín hiệu hủy kịch bản:</b> ${esc(I.invalid||'Chưa xác định.')}</div></div>
  ${pl?`<div class="blk"><h4>Hành động hiện tại: <span class="${actc}">${esc(act)}</span></h4><div class="r"><b class="k2">Vị thế:</b> ${esc(pl.status||'')}</div><div class="r"><b class="k2" style="color:var(--up)">Giữ khi:</b> ${esc(pl.hold||'Chưa xác định.')}</div><div class="r"><b class="k2" style="color:var(--dn)">Cắt lỗ/giảm tỷ trọng khi:</b> ${esc(pl.cut||'Chưa xác định.')}</div><div class="r"><b class="k2" style="color:var(--wait)">Chốt lời khi:</b> ${esc(pl.take||'Chưa xác định.')}</div></div>`:`<div class="blk"><h4>Mã chưa có trong danh mục</h4><div class="r">Thêm vị thế bằng nút <b>＋ Danh mục</b> ở thanh trên để xem kế hoạch giữ / cắt lỗ / chốt lời theo giá vốn của bạn.</div></div>`}</div>
+ ${newsBlock(tk)}
  <div class="qa"><div class="k">Hỏi đáp nhanh về mã đang chọn</div><div class="row"><input id="qIn" placeholder="Nhập câu hỏi, ví dụ: nếu thủng hỗ trợ thì làm gì?"><button class="btn" id="qGo" style="height:42px;background:linear-gradient(180deg,#6366f1,#4f46e5)">Phân tích</button></div>
  <div id="qOut" style="display:none;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--in);box-shadow:var(--well);font-size:12.8px;line-height:1.5"><div><b class="k" style="color:var(--ac)">Trả lời:</b> <span id="qR"></span></div><div><b class="k" style="color:var(--up)">Khuyến nghị:</b> <b id="qC"></b></div><div><b class="k" style="color:var(--wait)">Phân tích:</b> <span id="qA"></span></div></div></div>`;
  m.classList.add('on');$('#scrim').classList.add('on');$('#mx').onclick=closeAll;mountChart(det,tk);bindQA(det,tk)}
@@ -366,7 +396,9 @@ function mountChart(det,tk){const L=window.LightweightCharts,I=det.info||{};if(!
 function bindQA(det,tk){const I=det.info||{},plan=I.portfolio_plan||null,ma=det.lines||{};const num=v=>isN(v)?Math.round(Number(v)).toLocaleString('en-US'):'—';
  const recoCls=t=>t.includes('BÁN')||t.includes('GIẢM')||t.includes('TRÁNH')?'var(--dn)':((t.includes('CHỜ')||t.includes('QUAN SÁT')||t.includes('XÁC NHẬN'))?'var(--wait)':'var(--up)');
  function ans(q){const s=String(q||'').trim().toLowerCase(),ba=String(I.buy_action||'CHỜ XÁC NHẬN');let reply=`Với ${tk}, hành động ưu tiên hiện tại là ${ba.toLowerCase()}.`,reco=plan?(plan.action||ba):ba,an=[I.why,I.entry,I.invalid].filter(Boolean).join(' ');if(!s)return {reply,reco,an};const has=(...a)=>a.some(x=>s.includes(x));
-  if(has('mua','vào','vao','mở vị thế','mo vi the')){reco=ba;reply=`Hiện tại với ${tk}, hệ thống nghiêng về ${ba.toLowerCase()}.`;an=`${I.why||''} Điểm vào theo dõi: ${I.entry||''} Tránh mua khi: ${I.invalid||''}`.trim()}
+  const NN=(D.news||{})[tk];
+  if(has('tin tức','tin tuc','tin mới','tin moi','tin gần đây','tin gan day')){reco=NN&&NN.combined?NN.combined.label:ba;if(NN&&NN.result){const r=NN.result;reply=`Tin tức về ${tk}: ${r.summary}`;an=`Ngắn hạn ${r.short_term.direction} (độ mạnh ${r.short_term.strength}/5): ${r.short_term.reason} Dài hạn ${r.long_term.direction} (độ mạnh ${r.long_term.strength}/5): ${r.long_term.reason}`}else{reply=`Chưa có đánh giá tin tức cho ${tk}. Dùng nút Tin tức AI ở thanh trên để phân tích.`;an=''}}
+  else if(has('mua','vào','vao','mở vị thế','mo vi the')){reco=ba;reply=`Hiện tại với ${tk}, hệ thống nghiêng về ${ba.toLowerCase()}.`;an=`${I.why||''} Điểm vào theo dõi: ${I.entry||''} Tránh mua khi: ${I.invalid||''}`.trim()}
   else if(has('giữ','giu','nắm giữ','nam giu')){reco=plan?(plan.action||'GIỮ / THEO DÕI'):ba;reply=`Nếu tiếp tục giữ ${tk}, nên bám theo các mốc kỹ thuật gần thay vì giữ vô điều kiện.`;an=plan?`${plan.hold||''} ${plan.cut||''}`.trim():`${I.why||''} ${I.invalid||''}`.trim()}
   else if(has('bán','ban','chốt','chot','giảm tỷ trọng','giam ty trong')){reco=plan?(plan.action||'BÁN / GIẢM TỶ TRỌNG'):'CHỐT TỪNG PHẦN / QUAN SÁT';reply='Khi hỏi về bán/chốt lời, ưu tiên bán theo điều kiện xác nhận chứ không mặc định bán ngay.';an=plan?`${plan.take||''} ${plan.cut||''}`.trim():`${I.invalid||''} ${I.entry||''}`.trim()}
   else if(has('thủng hỗ trợ','thung ho tro','gãy hỗ trợ','gay ho tro','mất hỗ trợ','mat ho tro','ema20','ma50')){reco=plan?(plan.action||'BÁN / GIẢM TỶ TRỌNG'):'TẠM DỪNG MUA / QUAN SÁT RỦI RO';const lv=[];if(isN(det.support))lv.push(`hỗ trợ ${num(det.support)}`);reply=`Nếu ${tk} thủng ${lv.length?lv.join(' / '):'mốc hỗ trợ gần'} thì nên ưu tiên hạ rủi ro thay vì kỳ vọng hồi ngay.`;an=plan?(plan.cut||''):(I.invalid||'')}

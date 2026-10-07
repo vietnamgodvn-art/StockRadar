@@ -321,8 +321,8 @@ HELP = {
     "regime": "Trạng thái thị trường là điểm 0–100 tổng hợp từ xu hướng VN-Index, RSI, lợi suất 20 phiên và độ rộng. Điểm cao hơn nghĩa là bối cảnh thuận lợi hơn cho vị thế mua, nhưng không đảm bảo giá sẽ tăng.",
     "breadth": "Độ rộng = tỷ lệ mã tăng giá trong danh sách đang quét. Trên 50% nghĩa là số mã tăng chiếm ưu thế.",
     "risk": "Rủi ro thị trường được suy ra từ điểm trạng thái thị trường. Dùng để điều chỉnh mức thận trọng và tỷ trọng, không phải dự báo chắc chắn.",
-    "score": "Điểm kỹ thuật 0–100 thể hiện mức độ tích cực/tiêu cực của tín hiệu. Đây không phải Điểm tin cậy.",
-    "confidence": "Điểm tin cậy 0–100 thể hiện mức độ đồng thuận/độ rõ của đánh giá và khuyến nghị theo bộ quy tắc hiện tại. Đây không phải xác suất thắng được kiểm định thống kê.",
+    "score": "Điểm kỹ thuật 0–100 thể hiện mức độ tích cực/tiêu cực của tín hiệu. Đây không phải Độ rõ tín hiệu.",
+    "confidence": "Độ rõ tín hiệu 50–95 = 52 + 0,75 × |điểm − 50|: điểm càng xa mức trung tính thì càng rõ, theo cả hai phía. Nó KHÔNG phải xác suất khuyến nghị đúng (đã kiểm chứng ngược: gần như không dự báo được gì). Muốn biết hiệu quả thực tế, xem số đo lịch sử của mức điểm.",
     "support": "Hỗ trợ 20 phiên: vùng giá thấp đáng chú ý trong 20 phiên gần đây. Nếu giá thủng vùng này, rủi ro thường tăng.",
     "resistance": "Kháng cự 20 phiên: vùng giá cao đáng chú ý trong 20 phiên gần đây. Khi giá tiến gần vùng này, áp lực bán có thể tăng.",
     "rsi": "RSI(14) đo động lượng trong 14 phiên. Khoảng 50–70 thường cho thấy lực giá khá tích cực; quá cao có thể đi kèm rủi ro mua đuổi.",
@@ -794,7 +794,7 @@ def tradingview_lightweight_chart(
       placeEl.textContent = placeText; if (!placeText) placeEl.style.display = 'none';
       document.getElementById('info-source').textContent = [I.date_text,I.source].filter(Boolean).join(' · ');
       const metricBits = [
-        `<span>Tin cậy <b>${{esc(I.confidence ?? '—')}}/100</b></span>`,
+        `<span>Độ rõ <b>${{esc(I.confidence ?? '—')}}/100</b></span>`,
         `<span>RSI <b>${{esc(I.rsi ?? '—')}}</b></span>`,
         `<span>KL/TB20 <b>${{esc(I.volume_ratio ?? '—')}} lần</b></span>`,
       ];
@@ -1220,7 +1220,7 @@ def decision_explanation(r: pd.Series, regime: dict, history: pd.DataFrame) -> d
         ds = relative_pct(close, support)
         dr = relative_pct(resistance, close)
         why.append(f"Hỗ trợ gần {support:,.0f} (cách giá {ds:+.1f}%), kháng cự gần {resistance:,.0f} (còn khoảng {dr:+.1f}% phía trên).")
-    why.append(f"Điểm tin cậy {confidence}/100; điểm kỹ thuật {score}/100; bối cảnh thị trường {int(safe_num(regime.get('score'),0))}/100.")
+    why.append(f"Độ rõ tín hiệu {confidence}/100; điểm kỹ thuật {score}/100; bối cảnh thị trường {int(safe_num(regime.get('score'),0))}/100.")
 
     entry = []
     # Kịch bản mua theo breakout hoặc pullback, ưu tiên điều kiện xác nhận thay vì một giá duy nhất.

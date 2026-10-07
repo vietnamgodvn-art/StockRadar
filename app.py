@@ -20,6 +20,7 @@ load_dotenv(BASE_DIR / ".env", override=True)
 from stockdash.auth import require_password
 from stockdash.config import APP_NAME, DEFAULT_UNIVERSE, PORTFOLIO_CSV, RUNTIME_CACHE_PATH
 from stockdash.engine import build_market_tables
+from stockdash.news_service import analyze_ticker, estimated_cost_usd, has_ai_key, model_name
 from stockdash.providers import MarketBundle, SSIProvider, VnstockProvider, register_vnstock_key
 from stockdash.storage import load_portfolio
 from stockdash.indicators import add_indicators
@@ -737,7 +738,7 @@ if CLASSIC_UI:
 else:
     # Giao diện mới: MỘT thanh trên duy nhất giống bản mẫu (thương hiệu · tìm mã · Danh mục · tối · ĐỒNG BỘ · CẬP NHẬT).
     st.markdown(RADAR_CSS, unsafe_allow_html=True)
-    header_l, c_search, c_pf, c_dark, sync_col, full_col = st.columns([2.0, 3.4, 1.35, 1.55, 1.25, 1.9], vertical_alignment="center")
+    header_l, c_search, c_pf, c_news, c_dark, sync_col, full_col = st.columns([1.8, 3.0, 1.3, 1.45, 1.4, 1.2, 1.8], vertical_alignment="center")
     status_ph = st.empty()
 mode_text_top = "Chỉnh sửa nhanh" if DEV_MODE else "Sử dụng hằng ngày"
 header_ph = header_l.empty()  # điền sau, khi đã biết các thông báo trạng thái (gộp chung 1 thẻ)
@@ -929,6 +930,83 @@ def _symbol_options():
     return base, {}
 
 
+def _news_panel(cands: list[str]) -> None:
+    """Nút Tin tức AI: bật khóa, chọn mã và chạy đánh giá tin tức (có tốn phí theo lượt gọi)."""
+    st.markdown("**Đánh giá tin tức bằng AI**")
+    st.caption(
+        "AI đọc ~30 tiêu đề tin gần đây của mã (báo chí + công bố thông tin) rồi nhận định tác động tới giá ngắn hạn (1–4 tuần) "
+        "và dài hạn (6–12 tháng). Chỉ đọc tiêu đề, không phải nội dung bài; kết quả là tham khảo, không phải lời khuyên đầu tư."
+    )
+    if not has_ai_key():
+        st.info("Chưa có khóa API của Anthropic. Lấy khóa tại console.anthropic.com (cần bật thanh toán), rồi:")
+        st.markdown(
+            "- **Trên web (Streamlit Cloud):** vào Manage app → Settings → Secrets, thêm dòng `ANTHROPIC_API_KEY = \"khóa-của-bạn\"`.\n"
+            "- **Trên máy:** dán khóa vào ô dưới đây (lưu trong file `.env` của máy bạn)."
+        )
+        key = st.text_input("ANTHROPIC_API_KEY", type="password", key="anthropic_key_input", placeholder="Dán khóa vào đây")
+        if st.button("LƯU KHÓA", key="save_anthropic_key", width="stretch"):
+            if key.strip():
+                _save_env(ANTHROPIC_API_KEY=key.strip())
+                st.rerun()
+            else:
+                st.error("Chưa nhập khóa.")
+        return
+    st.caption(f"Mô hình: `{model_name()}` · ước tính khoảng ${estimated_cost_usd(1):.2f} mỗi mã. Kết quả được nhớ 12 giờ.")
+    if not cands:
+        st.info("Chưa có mã nào để phân tích. Bấm ĐỒNG BỘ trước.")
+        return
+    pick = st.selectbox("Mã cần phân tích", cands, key="news_pick")
+    force = st.checkbox("Làm mới dù đã có kết quả gần đây", key="news_force")
+    mkt = globals().get("view_market")
+
+    def _ctx(tk: str) -> tuple[str, dict]:
+        name, ctx = "", {}
+        cat = st.session_state.get("symbol_catalog")
+        if isinstance(cat, pd.DataFrame) and not cat.empty and "ticker" in cat.columns:
+            hit = cat[cat["ticker"].astype(str).str.upper() == tk]
+            if not hit.empty:
+                name = str(hit.iloc[0].get("company_name", "") or "")
+        if isinstance(mkt, pd.DataFrame) and not mkt.empty and "ticker" in mkt.columns:
+            hit = mkt[mkt["ticker"].astype(str).str.upper() == tk]
+            if not hit.empty:
+                r = hit.iloc[0]
+                ctx = {
+                    "giá hiện tại": r.get("close"), "thay đổi phiên %": r.get("change_pct"), "RSI14": r.get("rsi14"),
+                    "so với EMA20": ("trên" if pd.notna(r.get("close")) and pd.notna(r.get("ema20")) and r.get("close") > r.get("ema20") else "dưới") if pd.notna(r.get("ema20")) else None,
+                    "ngành": r.get("sector"), "sàn": r.get("exchange"),
+                }
+                ctx = {k: (round(float(v), 2) if isinstance(v, (int, float)) and pd.notna(v) else v) for k, v in ctx.items() if v is not None and not (isinstance(v, float) and pd.isna(v))}
+        return name, ctx
+
+    c1, c2 = st.columns(2)
+    if c1.button("PHÂN TÍCH", type="primary", key="news_go_one", width="stretch"):
+        name, ctx = _ctx(pick)
+        with st.spinner(f"Đang đọc tin và nhờ AI đánh giá {pick}..."):
+            res = analyze_ticker(pick, name, ctx, force=bool(force))
+        if res.get("ok"):
+            st.session_state["v2_open"] = pick
+            st.rerun()
+        else:
+            st.error(res.get("error", "Không phân tích được."))
+    if c2.button(f"TẤT CẢ ({len(cands)} MÃ)", key="news_go_all", width="stretch",
+                 help=f"Ước tính khoảng ${estimated_cost_usd(len(cands)):.2f}. Mã đã có kết quả gần đây được bỏ qua."):
+        bar = st.progress(0.0)
+        errors = []
+        for i, tk in enumerate(cands):
+            name, ctx = _ctx(tk)
+            res = analyze_ticker(tk, name, ctx, force=bool(force))
+            if not res.get("ok"):
+                errors.append(f"{tk}: {res.get('error')}")
+                if "ANTHROPIC_API_KEY" in str(res.get("error")) or "số dư" in str(res.get("error")):
+                    break
+            bar.progress((i + 1) / len(cands))
+        if errors:
+            st.warning("Một số mã chưa phân tích được:\n\n" + "\n".join(f"- {e}" for e in errors[:6]))
+        else:
+            st.session_state["v2_open"] = pick
+            st.rerun()
+
+
 def _render_radar():
     """Giao diện mới: thanh công cụ bằng widget Streamlit + trang HTML tương tác nhận dữ liệu thật."""
     options, names = _symbol_options()
@@ -950,6 +1028,15 @@ def _render_radar():
     with c_pf:
         with st.popover("Danh mục", width="stretch", icon=":material/add:", help="Thêm lần mua, điều chỉnh/xóa vị thế, sao lưu CSV"):
             render_portfolio_manager(PORTFOLIO_PATH)
+    with c_news:
+        _cands: list[str] = []
+        _vt = globals().get("view_top")
+        if isinstance(_vt, pd.DataFrame) and not _vt.empty and "ticker" in _vt.columns:
+            _cands += [str(x).upper() for x in _vt["ticker"].head(RADAR_TOP_N)]
+        _cands += held_symbols()
+        _cands = list(dict.fromkeys(_cands))
+        with st.popover("Tin tức AI", width="stretch", icon=":material/newspaper:", help="Đánh giá tin tức doanh nghiệp và tác động tới giá bằng AI"):
+            _news_panel(_cands)
     with c_dark:
         dark = st.toggle("Giao diện tối", key="dark_ui")
     if dark:
