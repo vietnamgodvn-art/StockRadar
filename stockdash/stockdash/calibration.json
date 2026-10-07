@@ -1,0 +1,75 @@
+{
+ "basis": "kiểm chứng ngược 48 mã, 2019-08 → 2026-10, lợi suất 20 phiên từ giá mở cửa phiên kế tiếp, chưa trừ phí; rổ có sai lệch người sống sót",
+ "bands": [
+  {
+   "tu": 0,
+   "den": 34,
+   "n": 22541,
+   "tb_20p": 1.1,
+   "trung_vi_20p": 0.72,
+   "hon_rổ_tb": -0.3,
+   "ty_le_hon_trung_vi": 48.6,
+   "ty_le_lai": 52.7
+  },
+  {
+   "tu": 35,
+   "den": 44,
+   "n": 12418,
+   "tb_20p": 1.0,
+   "trung_vi_20p": 0.19,
+   "hon_rổ_tb": -0.34,
+   "ty_le_hon_trung_vi": 48.0,
+   "ty_le_lai": 50.4
+  },
+  {
+   "tu": 45,
+   "den": 54,
+   "n": 12012,
+   "tb_20p": 1.35,
+   "trung_vi_20p": 0.49,
+   "hon_rổ_tb": -0.19,
+   "ty_le_hon_trung_vi": 49.6,
+   "ty_le_lai": 51.9
+  },
+  {
+   "tu": 55,
+   "den": 61,
+   "n": 11253,
+   "tb_20p": 1.77,
+   "trung_vi_20p": 0.77,
+   "hon_rổ_tb": -0.01,
+   "ty_le_hon_trung_vi": 50.7,
+   "ty_le_lai": 53.3
+  },
+  {
+   "tu": 62,
+   "den": 71,
+   "n": 17035,
+   "tb_20p": 2.45,
+   "trung_vi_20p": 1.02,
+   "hon_rổ_tb": 0.23,
+   "ty_le_hon_trung_vi": 51.7,
+   "ty_le_lai": 54.0
+  },
+  {
+   "tu": 72,
+   "den": 81,
+   "n": 7048,
+   "tb_20p": 3.59,
+   "trung_vi_20p": 1.22,
+   "hon_rổ_tb": 0.85,
+   "ty_le_hon_trung_vi": 52.5,
+   "ty_le_lai": 54.3
+  },
+  {
+   "tu": 82,
+   "den": 100,
+   "n": 1876,
+   "tb_20p": 5.21,
+   "trung_vi_20p": 2.21,
+   "hon_rổ_tb": 1.92,
+   "ty_le_hon_trung_vi": 52.3,
+   "ty_le_lai": 57.1
+  }
+ ]
+}
