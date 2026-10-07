@@ -181,8 +181,9 @@ html,body{background:var(--bg)}
 .tr>:nth-child(8){min-width:0}
 .tsp{min-width:0;display:block}.tsp svg.sp{display:block;width:100%;height:28px}
 @media(max-width:760px){.tr,.tr.pf{grid-template-columns:60px 1fr 1fr 84px;gap:8px}.tr>:nth-child(2),.tr>:nth-child(4),.tr>:nth-child(6),.tr>:nth-child(7){display:none}}
-.tbl::after{transition:opacity .2s}.tbl.end::after{opacity:0}
-.tbl{padding-bottom:14px !important}
+/*fade-v2*/
+.tbl{padding-bottom:0 !important}
+.tbl::after{margin-top:0 !important;height:76px !important;transition:opacity .2s}
 </style></head><body><div class="mesh"><i></i><i></i><i></i></div>
 <div class="ticker"><div class="belt" id="belt"></div></div>
 <div class="wrap">
