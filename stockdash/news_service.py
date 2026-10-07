@@ -123,6 +123,98 @@ def all_cached(tickers) -> dict:
     return out
 
 
+# ---------------------------------------------------------------- tin miễn phí (không cần AI)
+HEADLINES_CACHE_PATH = Path(DATA_DIR) / "headlines_cache.json"
+HEADLINES_TTL_HOURS = 6.0
+
+_POS = ("lợi nhuận tăng", "lãi tăng", "tăng trưởng", "vượt kế hoạch", "vượt chỉ tiêu", "kỷ lục", "cổ tức", "thưởng cổ phiếu", "mua lại cổ phiếu",
+        "trúng thầu", "ký hợp đồng", "hợp đồng lớn", "nâng dự báo", "nâng khuyến nghị", "khuyến nghị mua", "mở rộng", "hợp tác", "hoàn nhập",
+        "lãi ròng tăng", "doanh thu tăng", "đạt", "được chấp thuận", "chấp thuận", "mua vào", "tăng sở hữu", "tăng tỷ lệ sở hữu", "tăng vốn")
+_NEG = ("giảm sàn", "lỗ", "thua lỗ", "giảm mạnh", "lợi nhuận giảm", "lãi giảm", "thanh tra", "xử phạt", "bị phạt", "khởi tố", "vi phạm", "đình chỉ",
+        "cảnh báo", "kiểm soát", "hủy niêm yết", "huỷ niêm yết", "nợ xấu", "chậm trả", "chậm nộp", "không đạt", "giải trình", "bán ra", "thoái vốn",
+        "bán cổ phiếu", "giảm sở hữu", "giảm tỷ lệ sở hữu", "dự phòng", "rủi ro", "sụt giảm", "hạ khuyến nghị", "hạ dự báo", "bị truy thu", "tạm ngừng")
+_PROC = ("thay đổi số lượng cổ phiếu", "tài liệu họp", "tài liệu đại hội", "nghị quyết", "biên bản", "báo cáo thường niên", "báo cáo tài chính",
+         "công bố thông tin", "cbtt", "thông báo", "thay đổi địa chỉ", "điều lệ", "ngày đăng ký cuối cùng")
+
+
+def keyword_tag(title: str) -> str:
+    """Gắn nhãn THÔ theo từ khoá: 'pos', 'neg', 'proc' (thủ tục) hoặc 'neu'. Chỉ là gợi ý, không hiểu ngữ cảnh."""
+    s = str(title or "").lower()
+    neg = sum(k in s for k in _NEG)
+    pos = sum(k in s for k in _POS)
+    if neg and neg >= pos:
+        return "neg"
+    if pos:
+        return "pos"
+    if any(k in s for k in _PROC):
+        return "proc"
+    return "neu"
+
+
+def _load_hl() -> dict:
+    try:
+        return json.loads(HEADLINES_CACHE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_hl(cache: dict) -> None:
+    try:
+        HEADLINES_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        HEADLINES_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _age_hours(ts: str) -> float:
+    try:
+        return (datetime.now(VN_TZ).replace(tzinfo=None) - datetime.fromisoformat(ts)).total_seconds() / 3600
+    except Exception:
+        return 1e9
+
+
+def cached_headlines(ticker: str) -> dict | None:
+    with _LOCK:
+        item = _load_hl().get(str(ticker).upper().strip())
+    if not isinstance(item, dict) or "items" not in item:
+        return None
+    return {**item, "stale": _age_hours(item.get("ts", "")) > HEADLINES_TTL_HOURS}
+
+
+def all_headlines(tickers) -> dict:
+    out = {}
+    for t in tickers:
+        c = cached_headlines(t)
+        if c and c["items"]:
+            out[str(t).upper().strip()] = c
+    return out
+
+
+def missing_headlines(tickers) -> list[str]:
+    """Mã chưa có tin trong bộ nhớ đệm hoặc đã quá hạn."""
+    need = []
+    for t in dict.fromkeys(str(x).upper().strip() for x in tickers):
+        c = cached_headlines(t)
+        if t and (c is None or c.get("stale")):
+            need.append(t)
+    return need
+
+
+def ensure_headlines(tickers, max_new: int = 8) -> int:
+    """Tải tin (miễn phí, từ vnstock) cho tối đa max_new mã còn thiếu. Trả số mã đã tải."""
+    n = 0
+    for t in missing_headlines(tickers)[:max_new]:
+        items = fetch_headlines(t)
+        pack = [{"date": h["date"], "title": h["title"], "tag": keyword_tag(h["title"])} for h in items]
+        ts = datetime.now(VN_TZ).replace(tzinfo=None).isoformat(timespec="seconds")
+        with _LOCK:
+            cache = _load_hl()
+            cache[t] = {"ts": ts, "items": pack}
+            _save_hl(cache)
+        n += 1
+    return n
+
+
 # ---------------------------------------------------------------- AI
 _DIRS = ["TĂNG", "GIẢM", "TRUNG LẬP"]
 _SCHEMA = {

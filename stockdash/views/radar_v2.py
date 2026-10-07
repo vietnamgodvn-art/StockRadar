@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from ..news_service import all_cached, combine, has_ai_key, model_name
+from ..news_service import all_cached, all_headlines, combine, has_ai_key, model_name
 from ..portfolio import aggregate_portfolio
 from ..storage import load_portfolio
 from ..ui_common import (
@@ -338,8 +338,12 @@ def render_radar_v2(
         calib = json.loads(_CALIB.read_text(encoding="utf-8"))
     except Exception:
         calib = None
+    headlines = {}
+    for tk, item in all_headlines(detail.keys()).items():
+        headlines[tk] = {"ts": item.get("ts"), "stale": bool(item.get("stale")), "items": item.get("items", [])[:20]}
+
     data = {
-        "calib": calib, "ai": {"enabled": has_ai_key(), "model": model_name()}, "news": news,
+        "headlines": headlines, "calib": calib, "ai": {"enabled": has_ai_key(), "model": model_name()}, "news": news,
         "dark": bool(dark), "note": price_note, "indices": _indices(bundle),
         "regime": ({k: regime.get(k) for k in ("score", "label", "risk", "breadth")} if regime else None),
         "top": top_rows, "port": port, "detail": detail, "open": (open_ticker or "").upper() or None, "tab": "market",

@@ -20,7 +20,7 @@ load_dotenv(BASE_DIR / ".env", override=True)
 from stockdash.auth import require_password
 from stockdash.config import APP_NAME, DEFAULT_UNIVERSE, PORTFOLIO_CSV, RUNTIME_CACHE_PATH
 from stockdash.engine import build_market_tables
-from stockdash.news_service import analyze_ticker, estimated_cost_usd, has_ai_key, model_name
+from stockdash.news_service import analyze_ticker, ensure_headlines, estimated_cost_usd, has_ai_key, missing_headlines, model_name
 from stockdash.providers import MarketBundle, SSIProvider, VnstockProvider, register_vnstock_key
 from stockdash.storage import load_portfolio
 from stockdash.indicators import add_indicators
@@ -1061,6 +1061,19 @@ def _render_radar():
         view_bundle, view_market, view_top, st.session_state.get("histories", histories), view_regime, True,
         PORTFOLIO_PATH, hourly_histories=hourly, open_ticker=open_ticker, dark=bool(dark),
     )
+
+    # Tin tức (miễn phí): tải theo từng đợt nhỏ sau khi đã hiển thị, rồi làm mới để hiện tin.
+    _hl_tickers = [str(x).upper() for x in view_top["ticker"].head(RADAR_TOP_N)] if isinstance(view_top, pd.DataFrame) and not view_top.empty else []
+    _hl_tickers += held_symbols()
+    _hl_need = missing_headlines(_hl_tickers)
+    _hl_tried = st.session_state.setdefault("hl_tried", set())
+    _hl_need = [x for x in _hl_need if x not in _hl_tried]
+    if _hl_need:
+        status_ph.markdown(_chips_html(status_rows + [("wait", f"<b>Đang tải tin tức cho {len(_hl_need)} mã…</b> Giao diện vẫn dùng được; sẽ tự làm mới khi xong.")]), unsafe_allow_html=True)
+        batch = _hl_need[:8]
+        _hl_tried.update(batch)
+        ensure_headlines(batch, max_new=8)
+        st.rerun()
 
     # Đã hiển thị xong giao diện → mới tải lịch sử cho Top 10 (một lần mỗi phiên), rồi làm mới.
     if not technical_live and mode == "DỮ LIỆU THẬT - VNSTOCK" and isinstance(view_top, pd.DataFrame) and not view_top.empty:
